@@ -1,0 +1,10 @@
+title:Level 11
+lurd:uulldrrurrddrdlldluuulurdddrruulurdddlluurulldlu
+######
+#.# .##
+#     #
+# X  X##
+###@#  #
+  #    #
+  #  ###
+  ####

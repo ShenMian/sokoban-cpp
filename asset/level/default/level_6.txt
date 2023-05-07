@@ -1,0 +1,10 @@
+title:Level 6
+lurd:udurrruuulddrdllldllurrrrdruuuu
+     ###
+    ##.#
+    #  #
+    #X #
+#####  #
+#      #
+#  @#  #
+########

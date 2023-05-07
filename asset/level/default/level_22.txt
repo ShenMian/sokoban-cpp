@@ -1,0 +1,9 @@
+title:Level 22
+lurd:urrdddllrruuulldrdrddlluruuurdldddrruldluuurulddddlllurrdruuuddruu
+  #####
+  #...#
+  #@X #
+####X ##
+#   X  #
+#      #
+########

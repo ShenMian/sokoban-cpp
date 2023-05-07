@@ -1,0 +1,11 @@
+title:Level 21
+lurd:uulddddruuuldllurdrudddrddluuurul
+  ####
+###..#
+# XX #
+# . @#
+### X#
+  #  #
+  #  #
+  #  #
+  ####

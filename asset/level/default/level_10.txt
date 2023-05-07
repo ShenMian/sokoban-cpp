@@ -1,0 +1,10 @@
+title:Level 10
+lurd:uulldduulldldrrddrruluudlluurrrdrullddddluruuullddrdruurull
+     ###
+ #####.#
+##.    #
+# X#X  #
+#    #@#
+###   ##
+  #   #
+  #####

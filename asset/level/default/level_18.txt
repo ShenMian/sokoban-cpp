@@ -1,0 +1,10 @@
+title:Level 18
+lurd:uulllldluluurrdullddrrrrrdruuuddlllluuldldrrrrrdruu
+      ###
+##### #.#
+#   ###.#
+#  X#   #
+#    X  #
+##  ##  #
+ #  ## @#
+ ########

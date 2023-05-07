@@ -1,0 +1,10 @@
+title:Level 5
+lurd:lluuuldrddllurdruulurrrdruu
+     ###
+     #.#
+ ##### #
+ #     #
+##X    #
+#   ####
+#    @#
+#######

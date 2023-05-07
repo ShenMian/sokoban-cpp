@@ -1,0 +1,9 @@
+title:Level 8
+lurd:lluuurulddddrruulrddlluu
+#####
+#.  #
+##. ##
+## X #
+# X# #
+#   @#
+######

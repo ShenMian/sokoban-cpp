@@ -1,0 +1,9 @@
+title:Level 25
+lurd:rdduurrddlddlluruudrruullllrrddddruluuurrddldluudrruulllrddddrruuu
+########
+#..@  .#
+####X#X#
+  ## X #
+  #    #
+  #    #
+  ######
