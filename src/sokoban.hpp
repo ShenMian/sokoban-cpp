@@ -46,7 +46,6 @@ public:
 				level_clock_.restart();
 			}
 		}
-		input_thread.join();
 	}
 
 private:
@@ -112,6 +111,7 @@ private:
 			if(event.type == sf::Event::Closed)
 			{
 				input_thread.request_stop();
+				input_thread.join();
 				window_.close();
 			}
 		}
