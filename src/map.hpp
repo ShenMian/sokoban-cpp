@@ -160,7 +160,7 @@ public:
 		size_t rows = 0, cols = 0;
 		for(std::string line; std::getline(file, line);)
 		{
-			if(line.empty() || line.front() == ';' || line.find(":") != std::string::npos)
+			if(line.empty() || line.front() == ';' || line.front() == '[' || line.find(":") != std::string::npos)
 				continue;
 			rows++;
 			cols = std::max(line.size(), cols);
@@ -174,7 +174,7 @@ public:
 		std::string line;
 		for(unsigned int y = 0; std::getline(file, line);)
 		{
-			if(line.empty() || line.front() == ';')
+			if(line.empty() || line.front() == ';' || line.front() == '[')
 				continue;
 			const auto it = line.find(":");
 			if(it != std::string::npos)
@@ -191,6 +191,7 @@ public:
 					break;
 
 				case '#':
+				case 'H':
 					map_[x][y] |= Tile::Wall;
 					break;
 
@@ -206,11 +207,13 @@ public:
 					break;
 
 				case '@':
+				case 'a':
 					map_[x][y] |= Tile::Player;
 					player_position_ = sf::Vector2i(x, y);
 					break;
 
 				case '+':
+				case 'x':
 					map_[x][y] |= Tile::Player | Tile::Target;
 					player_position_ = sf::Vector2i(x, y);
 					break;
