@@ -100,6 +100,56 @@ public:
 		player_right_texture_.loadFromFile("img/player_right.png");
 	}
 
+	void play(std::string movements, std::chrono::milliseconds delay = std::chrono::milliseconds(0))
+	{
+		for(const auto movement : movements)
+		{
+			switch(std::tolower(movement))
+			{
+			case 'u':
+				move(sf::Vector2i(0, -1));
+				break;
+
+			case 'd':
+				move(sf::Vector2i(0, 1));
+				break;
+
+			case 'l':
+				move(sf::Vector2i(-1, 0));
+				break;
+
+			case 'r':
+				move(sf::Vector2i(1, 0));
+				break;
+
+			default:
+				assert(false);
+			}
+			std::this_thread::sleep_for(delay);
+		}
+	}
+
+	void undo()
+	{
+		if(movements_.empty())
+			return;
+
+		const auto last_movement = movements_.back();
+		movements_.pop_back();
+		const auto last_direction = char_to_direction(last_movement);
+
+		change_player_orientation(last_direction);
+		if(std::isupper(last_movement))
+		{
+			const auto crate_pos = player_position_ + last_direction;
+			map_[crate_pos.x][crate_pos.y] &= ~Tile::Crate;
+			map_[player_position_.x][player_position_.y] |= Tile::Crate;
+		}
+		map_[player_position_.x][player_position_.y] &= ~Tile::Player;
+		player_position_ -= last_direction;
+		map_[player_position_.x][player_position_.y] |= Tile::Player;
+	}
+
 	void render(sf::RenderWindow& window) const
 	{
 		const auto window_size   = sf::Vector2f(window.getSize());
@@ -253,6 +303,35 @@ public:
 		fill(player_position_, Tile::Floor, Tile::Wall);
 	}
 
+	bool is_passed() const noexcept { return crate_positions_ == target_positions_; }
+
+	sf::Vector2u size() const
+	{
+		assert(!map_.empty());
+		return {static_cast<unsigned int>(map_.size()), static_cast<unsigned int>(map_[0].size())};
+	}
+
+	const std::string get_metadata(const std::string& key) const noexcept
+	{
+		if(!metadata_.contains(key))
+			return "";
+		return metadata_.at(key);
+	};
+	const auto& get_movements() const noexcept { return movements_; }
+
+private:
+	void change_player_orientation(const sf::Vector2i& direction)
+	{
+		if(direction.y == -1)
+			player_texture_ = &player_up_texture_;
+		else if(direction.y == 1)
+			player_texture_ = &player_down_texture_;
+		else if(direction.x == -1)
+			player_texture_ = &player_left_texture_;
+		else if(direction.x == 1)
+			player_texture_ = &player_right_texture_;
+	}
+
 	void move(const sf::Vector2i& direction)
 	{
 		change_player_orientation(direction);
@@ -284,86 +363,6 @@ public:
 		player_position_ = player_next_pos;
 
 		movements_.push_back(direction_to_char(direction));
-	}
-
-	void undo()
-	{
-		if(movements_.empty())
-			return;
-
-		const auto last_movement = movements_.back();
-		movements_.pop_back();
-		const auto last_direction = char_to_direction(last_movement);
-		
-		if (std::isupper(last_movement))
-		{
-			const auto crate_pos = player_position_ + last_direction;
-			map_[crate_pos.x][crate_pos.y] &= ~Tile::Crate;
-			map_[player_position_.x][player_position_.y] |= Tile::Crate;
-		}
-		map_[player_position_.x][player_position_.y] &= ~Tile::Player;
-		player_position_ -= last_direction;
-		map_[player_position_.x][player_position_.y] |= Tile::Player;
-
-		change_player_orientation(last_direction);
-	}
-
-	void play(std::string movements, std::chrono::milliseconds delay = std::chrono::milliseconds(200))
-	{
-		for(const auto movement : movements)
-		{
-			switch(std::tolower(movement))
-			{
-			case 'u':
-				move(sf::Vector2i(0, -1));
-				break;
-
-			case 'd':
-				move(sf::Vector2i(0, 1));
-				break;
-
-			case 'l':
-				move(sf::Vector2i(-1, 0));
-				break;
-
-			case 'r':
-				move(sf::Vector2i(1, 0));
-				break;
-
-			default:
-				assert(false);
-			}
-			std::this_thread::sleep_for(delay);
-		}
-	}
-
-	bool is_passed() const noexcept { return crate_positions_ == target_positions_; }
-
-	sf::Vector2u size() const
-	{
-		assert(!map_.empty());
-		return {static_cast<unsigned int>(map_.size()), static_cast<unsigned int>(map_[0].size())};
-	}
-
-	const std::string get_metadata(const std::string& key) const noexcept
-	{
-		if(!metadata_.contains(key))
-			return "";
-		return metadata_.at(key);
-	};
-	const auto& get_movements() const noexcept { return movements_; }
-
-private:
-	void change_player_orientation(const sf::Vector2i& direction)
-	{
-		if(direction.y == -1)
-			player_texture_ = &player_up_texture_;
-		else if(direction.y == 1)
-			player_texture_ = &player_down_texture_;
-		else if(direction.x == -1)
-			player_texture_ = &player_left_texture_;
-		else if(direction.x == 1)
-			player_texture_ = &player_right_texture_;
 	}
 
 	void fill(const sf::Vector2i& position, Tile tile, uint8_t border_tiles)

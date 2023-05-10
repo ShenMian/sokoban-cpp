@@ -124,22 +124,22 @@ private:
 		{
 			if(sf::Keyboard::isKeyPressed(sf::Keyboard::W) || sf::Keyboard::isKeyPressed(sf::Keyboard::Up))
 			{
-				map_.move({0, -1});
+				map_.play("u");
 				move_clock_.restart();
 			}
 			else if(sf::Keyboard::isKeyPressed(sf::Keyboard::S) || sf::Keyboard::isKeyPressed(sf::Keyboard::Down))
 			{
-				map_.move({0, 1});
+				map_.play("d");
 				move_clock_.restart();
 			}
 			else if(sf::Keyboard::isKeyPressed(sf::Keyboard::A) || sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
 			{
-				map_.move({-1, 0});
+				map_.play("l");
 				move_clock_.restart();
 			}
 			else if(sf::Keyboard::isKeyPressed(sf::Keyboard::D) || sf::Keyboard::isKeyPressed(sf::Keyboard::Right))
 			{
-				map_.move({1, 0});
+				map_.play("r");
 				move_clock_.restart();
 			}
 			if (sf::Keyboard::isKeyPressed(sf::Keyboard::BackSpace))
@@ -161,7 +161,7 @@ private:
 					load_level();
 					std::this_thread::sleep_for(std::chrono::seconds(1));
 				}
-				map_.play(map_.get_metadata("lurd"));
+				map_.play(map_.get_metadata("lurd"), std::chrono::milliseconds(200));
 				move_clock_.restart();
 			}
 		}
