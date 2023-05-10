@@ -37,7 +37,7 @@ struct hash<sf::Vector2<T>>
 
 } // namespace std
 
-char to_char(const sf::Vector2i& direction)
+char direction_to_char(const sf::Vector2i& direction)
 {
 	if(direction == sf::Vector2i(0, -1))
 		return 'u';
@@ -47,7 +47,32 @@ char to_char(const sf::Vector2i& direction)
 		return 'l';
 	if(direction == sf::Vector2i(1, 0))
 		return 'r';
-	throw std::invalid_argument("incorrect direction");
+	throw std::invalid_argument("invalid argument");
+}
+
+sf::Vector2i char_to_direction(char c)
+{
+	switch (std::tolower(c))
+	{
+	case 'u':
+		return sf::Vector2i(0, -1);
+		break;
+
+	case 'd':
+		return sf::Vector2i(0, 1);
+		break;
+
+	case 'l':
+		return sf::Vector2i(-1, 0);
+		break;
+
+	case 'r':
+		return sf::Vector2i(1, 0);
+		break;
+
+	default:
+		throw std::invalid_argument("invalid argument");
+	}
 }
 
 enum Tile : uint8_t
@@ -225,19 +250,12 @@ public:
 			}
 			y++;
 		}
-		fill(player_position_, Tile::Floor);
+		fill(player_position_, Tile::Floor, Tile::Wall);
 	}
 
 	void move(const sf::Vector2i& direction)
 	{
-		if(direction.y == -1)
-			player_texture_ = &player_up_texture_;
-		else if(direction.y == 1)
-			player_texture_ = &player_down_texture_;
-		else if(direction.x == -1)
-			player_texture_ = &player_left_texture_;
-		else if(direction.x == 1)
-			player_texture_ = &player_right_texture_;
+		change_player_orientation(direction);
 
 		const auto player_next_pos = player_position_ + direction;
 		if(map_[player_next_pos.x][player_next_pos.y] & Tile::Wall)
@@ -252,13 +270,42 @@ public:
 			crate_positions_.erase(player_next_pos);
 			map_[crate_next_pos.x][crate_next_pos.y] |= Tile::Crate;
 			crate_positions_.insert(crate_next_pos);
+
+			map_[player_position_.x][player_position_.y] &= ~Tile::Player;
+			map_[player_next_pos.x][player_next_pos.y] |= Tile::Player;
+			player_position_ = player_next_pos;
+
+			movements_.push_back(std::toupper(direction_to_char(direction)));
+			return;
 		}
 
 		map_[player_position_.x][player_position_.y] &= ~Tile::Player;
 		map_[player_next_pos.x][player_next_pos.y] |= Tile::Player;
 		player_position_ = player_next_pos;
 
-		movements_.push_back(to_char(direction));
+		movements_.push_back(direction_to_char(direction));
+	}
+
+	void undo()
+	{
+		if(movements_.empty())
+			return;
+
+		const auto last_movement = movements_.back();
+		movements_.pop_back();
+		const auto last_direction = char_to_direction(last_movement);
+		
+		if (std::isupper(last_movement))
+		{
+			const auto crate_pos = player_position_ + last_direction;
+			map_[crate_pos.x][crate_pos.y] &= ~Tile::Crate;
+			map_[player_position_.x][player_position_.y] |= Tile::Crate;
+		}
+		map_[player_position_.x][player_position_.y] &= ~Tile::Player;
+		player_position_ -= last_direction;
+		map_[player_position_.x][player_position_.y] |= Tile::Player;
+
+		change_player_orientation(last_direction);
 	}
 
 	void play(std::string movements, std::chrono::milliseconds delay = std::chrono::milliseconds(200))
@@ -294,19 +341,8 @@ public:
 
 	sf::Vector2u size() const
 	{
+		assert(!map_.empty());
 		return {static_cast<unsigned int>(map_.size()), static_cast<unsigned int>(map_[0].size())};
-	}
-
-	void fill(const sf::Vector2i& position, Tile tile)
-	{
-		map_[position.x][position.y] |= tile;
-		const sf::Vector2i directions[] = {{0, 1}, {0, -1}, {1, 0}, {-1, 0}};
-		for(const auto offset : directions)
-		{
-			const auto pos = position + offset;
-			if((map_[pos.x][pos.y] & (Tile::Wall | tile)) == 0)
-				fill(pos, tile);
-		}
 	}
 
 	const std::string get_metadata(const std::string& key) const noexcept
@@ -318,6 +354,30 @@ public:
 	const auto& get_movements() const noexcept { return movements_; }
 
 private:
+	void change_player_orientation(const sf::Vector2i& direction)
+	{
+		if(direction.y == -1)
+			player_texture_ = &player_up_texture_;
+		else if(direction.y == 1)
+			player_texture_ = &player_down_texture_;
+		else if(direction.x == -1)
+			player_texture_ = &player_left_texture_;
+		else if(direction.x == 1)
+			player_texture_ = &player_right_texture_;
+	}
+
+	void fill(const sf::Vector2i& position, Tile tile, uint8_t border_tiles)
+	{
+		map_[position.x][position.y] |= tile;
+		const sf::Vector2i directions[] = {{0, 1}, {0, -1}, {1, 0}, {-1, 0}};
+		for(const auto offset : directions)
+		{
+			const auto pos = position + offset;
+			if((map_[pos.x][pos.y] & (border_tiles | tile)) == 0)
+				fill(pos, tile, border_tiles);
+		}
+	}
+
 	std::vector<std::vector<uint8_t>>            map_;
 	std::unordered_map<std::string, std::string> metadata_;
 

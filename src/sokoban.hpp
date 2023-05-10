@@ -143,6 +143,11 @@ private:
 				map_.move({1, 0});
 				move_clock_.restart();
 			}
+			if (sf::Keyboard::isKeyPressed(sf::Keyboard::BackSpace))
+			{
+				map_.undo();
+				move_clock_.restart();
+			}
 			if(sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
 			{
 				load_level();
@@ -171,6 +176,6 @@ private:
 
 	sf::RenderWindow window_;
 
-	sf::Clock   level_clock_, move_clock_;
+	sf::Clock    level_clock_, move_clock_;
 	std::jthread input_thread;
 };
