@@ -185,7 +185,7 @@ public:
 		size_t rows = 0, cols = 0;
 		for(std::string line; std::getline(file, line);)
 		{
-			if(line.empty() || line.front() == ';' || line.front() == '[' || line.find(":") != std::string::npos)
+			if(line.empty() || line.front() == ';' || line.find(":") != std::string::npos)
 				continue;
 			rows++;
 			cols = std::max(line.size(), cols);
@@ -199,7 +199,7 @@ public:
 		std::string line;
 		for(unsigned int y = 0; std::getline(file, line);)
 		{
-			if(line.empty() || line.front() == ';' || line.front() == '[')
+			if(line.empty() || line.front() == ';')
 				continue;
 			const auto it = line.find(":");
 			if(it != std::string::npos)
