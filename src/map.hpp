@@ -191,7 +191,6 @@ public:
 					break;
 
 				case '#':
-				case 'H':
 					map_[x][y] |= Tile::Wall;
 					break;
 
@@ -207,13 +206,11 @@ public:
 					break;
 
 				case '@':
-				case 'a':
 					map_[x][y] |= Tile::Player;
 					player_position_ = sf::Vector2i(x, y);
 					break;
 
 				case '+':
-				case 'x':
 					map_[x][y] |= Tile::Player | Tile::Target;
 					player_position_ = sf::Vector2i(x, y);
 					break;
