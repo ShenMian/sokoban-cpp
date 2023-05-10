@@ -15,7 +15,7 @@ public:
 		create_window();
 
 		load_sounds();
-		background_sound_.play();
+		background_music_.play();
 
 		if(argc == 2)
 			level_ = std::atoi(argv[1]);
@@ -80,10 +80,9 @@ private:
 		success_buffer_.loadFromFile("audio/success.wav");
 		success_sound_.setBuffer(success_buffer_);
 
-		background_buffer_.loadFromFile("audio/background.wav");
-		background_sound_.setBuffer(background_buffer_);
-		background_sound_.setVolume(80.f);
-		background_sound_.setLoop(true);
+		background_music_.openFromFile("audio/background.wav");
+		background_music_.setVolume(80.f);
+		background_music_.setLoop(true);
 	}
 
 	void load_level()
@@ -171,8 +170,9 @@ private:
 	int level_ = 1;
 	Map map_;
 
-	sf::SoundBuffer success_buffer_, background_buffer_;
-	sf::Sound       success_sound_, background_sound_;
+	sf::SoundBuffer success_buffer_;
+	sf::Sound       success_sound_;
+	sf::Music       background_music_;
 
 	sf::RenderWindow window_;
 
