@@ -1,8 +1,0 @@
-title:Level 4
-lurd:uuullllddrrrdruurullll
-########
-#.     #
-# # #  #
-# X    #
-#### @##
-   ####

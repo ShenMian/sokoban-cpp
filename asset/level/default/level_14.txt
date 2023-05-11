@@ -1,9 +1,0 @@
-title:Level 14
-lurd:ddrruldluuluurdrdlddrruldluuruldlruulllddrrurullrrdrddluu
-######
-#.  .##
-# #   #
-#   @X##
-#### X #
-   #   #
-   #####

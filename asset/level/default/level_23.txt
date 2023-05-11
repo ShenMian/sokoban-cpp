@@ -1,9 +1,0 @@
-title:Level 23
-lurd:ddlldlluruurrddlruullddrdlurrrurulllrddlddrruuluurrdluldrdll
- #######
- #.X @ #
-## # X #
-# . X ##
-#.  #  #
-###    #
-  ######

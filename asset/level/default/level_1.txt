@@ -1,8 +1,0 @@
-title:Level 1
-lurd:llruu
-  ###
-  #.#
-  # ##
-###X #
-#. X@#
-######

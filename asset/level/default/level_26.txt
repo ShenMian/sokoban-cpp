@@ -1,9 +1,0 @@
-title:Level 26
-lurd:rrdulldrruurrddddlludrruuullrrdddlluurlddrruuluulddllurrdrrddlludrruullulldrrr
-  #####
-###   #
-#@X ..#
-# XX .#
-### # #
-  #   #
-  #####

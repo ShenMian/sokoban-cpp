@@ -1,9 +1,0 @@
-title:Level 3
-lurd:ddllurdrulurrlddrruuruldlu
-   ###
-  ##.###
- ##    #
-## @   #
-# X #  #
-#     ##
-#######
