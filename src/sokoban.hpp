@@ -34,13 +34,13 @@ public:
 		load_sounds();
 		background_music_.play();
 
-		// const auto path = std::filesystem::current_path() / "level" / "box_world.xsb";
-		const auto path = std::filesystem::current_path() / "level" / "default.xsb";
+		// const auto path = std::filesystem::path(argv[0]).parent_path() / "level" / "box_world.xsb";
+		const auto path = std::filesystem::path(argv[0]).parent_path() / "level" / "default.xsb";
 		load_levels_from_file(path);
 
 		if(argc == 2)
 			level_ = levels_.begin() + std::atoi(argv[1]) - 1;
-		
+
 		if(sf::Clipboard::getString().substring(0, 1) == "-" || sf::Clipboard::getString().substring(0, 1) == "#")
 			load_level_from_clipboard();
 
@@ -191,12 +191,12 @@ private:
 		const auto mouse_pos = level_->to_map_position(sf::Mouse::getPosition(window_), window_, material_);
 		if(mouse_pos.x < 1 || mouse_pos.x > level_->size().x || mouse_pos.y < 1 || mouse_pos.y > level_->size().y)
 			return;
-		
+
 		// if(level_->at(mouse_pos) & Tile::Floor)
 		if(level_->at(mouse_pos) & (Tile::Floor | Tile::Crate))
 		{
 			// 移动角色
-			
+
 			// 反着写是因为起始点可以为箱子, 但结束点不能
 			auto        path        = level_->find_path(mouse_pos, level_->player_position());
 			auto        current_pos = level_->player_position();
@@ -221,37 +221,41 @@ private:
 
 	void handle_keyboard_input()
 	{
-		if(move_clock_.getElapsedTime() < sf::seconds(0.25f))
+		if(keyboard_input_clock_.getElapsedTime() < sf::seconds(0.25f))
 			return;
-		if(sf::Keyboard::isKeyPressed(sf::Keyboard::W) || sf::Keyboard::isKeyPressed(sf::Keyboard::Up))
+		if(sf::Keyboard::isKeyPressed(sf::Keyboard::W) || sf::Keyboard::isKeyPressed(sf::Keyboard::Up) ||
+		   sf::Keyboard::isKeyPressed(sf::Keyboard::K))
 		{
 			level_->play("u");
-			move_clock_.restart();
+			keyboard_input_clock_.restart();
 		}
-		else if(sf::Keyboard::isKeyPressed(sf::Keyboard::S) || sf::Keyboard::isKeyPressed(sf::Keyboard::Down))
+		else if(sf::Keyboard::isKeyPressed(sf::Keyboard::S) || sf::Keyboard::isKeyPressed(sf::Keyboard::Down) ||
+		        sf::Keyboard::isKeyPressed(sf::Keyboard::J))
 		{
 			level_->play("d");
-			move_clock_.restart();
+			keyboard_input_clock_.restart();
 		}
-		else if(sf::Keyboard::isKeyPressed(sf::Keyboard::A) || sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
+		else if(sf::Keyboard::isKeyPressed(sf::Keyboard::A) || sf::Keyboard::isKeyPressed(sf::Keyboard::Left) ||
+		        sf::Keyboard::isKeyPressed(sf::Keyboard::H))
 		{
 			level_->play("l");
-			move_clock_.restart();
+			keyboard_input_clock_.restart();
 		}
-		else if(sf::Keyboard::isKeyPressed(sf::Keyboard::D) || sf::Keyboard::isKeyPressed(sf::Keyboard::Right))
+		else if(sf::Keyboard::isKeyPressed(sf::Keyboard::D) || sf::Keyboard::isKeyPressed(sf::Keyboard::Right) ||
+		        sf::Keyboard::isKeyPressed(sf::Keyboard::L))
 		{
 			level_->play("r");
-			move_clock_.restart();
+			keyboard_input_clock_.restart();
 		}
 		if(sf::Keyboard::isKeyPressed(sf::Keyboard::BackSpace))
 		{
 			level_->undo();
-			move_clock_.restart();
+			keyboard_input_clock_.restart();
 		}
 		if(sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
 		{
 			level_->reset();
-			move_clock_.restart();
+			keyboard_input_clock_.restart();
 		}
 		if(sf::Keyboard::isKeyPressed(sf::Keyboard::P))
 		{
@@ -264,7 +268,7 @@ private:
 			    std::this_thread::sleep_for(std::chrono::seconds(1));
 			}
 			map_.play(map_.get_metadata("lurd"), std::chrono::milliseconds(200));
-			move_clock_.restart();
+			keyboard_input_clock_.restart();
 			*/
 		}
 	}
@@ -279,7 +283,7 @@ private:
 	sf::Sound       success_sound_;
 	sf::Music       background_music_;
 
-	sf::Clock    move_clock_;
+	sf::Clock    keyboard_input_clock_;
 	sf::Vector2i selected_crate_ = {-1, -1};
 	std::jthread input_thread;
 

@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "SFML/System/Vector2.hpp"
 #include "crc32.hpp"
 #include "material.hpp"
 #include <SFML/Graphics.hpp>
@@ -32,6 +33,45 @@ struct std::hash<sf::Vector2<T>>
 	}
 };
 
+inline sf::Vector2i movement_to_direction(char move)
+{
+	switch(std::tolower(move))
+	{
+	case 'u':
+		return {0, -1};
+
+	case 'd':
+		return {0, 1};
+
+	case 'l':
+		return {-1, 0};
+
+	case 'r':
+		return {1, 0};
+	}
+	throw std::invalid_argument("invalid movement");
+}
+
+inline char rotate_movement(char move, int rotation, bool flipped)
+{
+	const char moves[] = {'u', 'r', 'd', 'l'};
+	switch(std::tolower(move))
+	{
+	case 'u':
+		return moves[(0 + rotation) % 4];
+
+	case 'r':
+		return moves[(1 + rotation + (flipped ? 2 : 0)) % 4];
+
+	case 'd':
+		return moves[(2 + rotation) % 4];
+
+	case 'l':
+		return moves[(3 + rotation + (flipped ? 2 : 0)) % 4];
+	}
+	throw std::invalid_argument("invalid movement");
+}
+
 enum Tile : uint8_t
 {
 	Floor  = 1 << 0,
@@ -49,11 +89,11 @@ class Level
 {
 public:
 	/**
-	* @brief 构造函数.
-	* 
-	* @param data XSB 格式数据.
-	* @param size 地图大小.
-	*/
+	 * @brief 构造函数.
+	 *
+	 * @param data XSB 格式数据.
+	 * @param size 地图大小.
+	 */
 	Level(const std::string& data, const sf::Vector2i& size) : size_(size)
 	{
 		map_.resize(size.x * size.y);
@@ -150,6 +190,12 @@ public:
 		fill(player_position_, Tile::Floor, Tile::Wall);
 	}
 
+	/**
+	 * @brief 移动角色.
+	 *
+	 * @param movements LURD 格式移动记录.
+	 * @param interval  移动间隔.
+	 */
 	void play(const std::string& movements, std::chrono::milliseconds interval = std::chrono::milliseconds(0))
 	{
 		for(const auto movement : movements)
@@ -198,6 +244,8 @@ public:
 			return;
 
 		const auto last_direction = movement_to_direction(movements_.back());
+		movements_.pop_back();
+
 		if(std::isupper(movements_.back()))
 		{
 			// 拉箱子
@@ -211,8 +259,6 @@ public:
 		at(player_position_) &= ~Tile::Player;
 		at(player_last_pos) |= Tile::Player;
 		player_position_ = player_last_pos;
-
-		movements_.pop_back();
 	}
 
 	/**
@@ -226,7 +272,7 @@ public:
 
 	/**
 	 * @brief 是否通关.
-	 * 
+	 *
 	 * @return true  已通关.
 	 * @return false 未通关.
 	 */
@@ -234,7 +280,7 @@ public:
 
 	/**
 	 * @brief 渲染地图.
-	 * 
+	 *
 	 * @param window   窗口.
 	 * @param material 材质.
 	 */
@@ -322,14 +368,14 @@ public:
 				/*
 				if(tiles & Tile::CrateMoveable)
 				{
-					sf::CircleShape circle(10);
-					circle.setFillColor(sf::Color(0, 255, 0, 100));
-					circle.setScale(sprite.getScale());
-					circle.setOrigin(sprite.getOrigin() - sf::Vector2f(sprite.getTexture()->getSize() / 2u) +
-					                 sf::Vector2f(circle.getRadius(), circle.getRadius()));
-					circle.setPosition(sprite.getPosition());
-					window.draw(circle);
-					tiles &= ~Tile::CrateMoveable;
+				    sf::CircleShape circle(10);
+				    circle.setFillColor(sf::Color(0, 255, 0, 100));
+				    circle.setScale(sprite.getScale());
+				    circle.setOrigin(sprite.getOrigin() - sf::Vector2f(sprite.getTexture()->getSize() / 2u) +
+				                     sf::Vector2f(circle.getRadius(), circle.getRadius()));
+				    circle.setPosition(sprite.getPosition());
+				    window.draw(circle);
+				    tiles &= ~Tile::CrateMoveable;
 				}
 				*/
 			}
@@ -380,15 +426,48 @@ public:
 
 	void flip()
 	{
-		// TODO
+		for(int y = 0; y < size().y; y++)
+		{
+			auto left  = map_.begin() + y * size().x;
+			auto right = map_.begin() + (y + 1) * size().x - 1;
+
+			for(int x = 0; x < size().x / 2; x++)
+			{
+				std::swap_ranges(left, left + 1, right);
+				left++;
+				right--;
+			}
+		}
+
+		auto flip = [center_x = (size().x - 1) / 2.f](auto pos) {
+			if(pos.x < center_x)
+				pos.x = std::ceil(center_x + std::abs(pos.x - center_x));
+			else
+				pos.x = std::floor(center_x - std::abs(pos.x - center_x));
+			return pos;
+		};
+
+		player_position_ = flip(player_position_);
+
+		std::unordered_set<sf::Vector2i> temp;
+		std::transform(crate_positions_.cbegin(), crate_positions_.cend(), std::inserter(temp, temp.begin()),
+		               [flip](auto p) { return flip(p); });
+		crate_positions_ = temp;
+
+		temp.clear();
+		std::transform(target_positions_.cbegin(), target_positions_.cend(), std::inserter(temp, temp.begin()),
+		               [flip](auto p) { return flip(p); });
+		target_positions_ = temp;
+
+		flipped_ = !flipped_;
 	}
 
 	/**
 	 * @brief 寻路.
-	 * 
+	 *
 	 * @param start 起始点.
 	 * @param end   终止点.
-	 * 
+	 *
 	 * @return std::vector<sf::Vector2i> 最短路径.
 	 */
 	std::vector<sf::Vector2i> find_path(const sf::Vector2i& start, const sf::Vector2i& end)
@@ -477,13 +556,15 @@ public:
 
 	uint8_t& at(const sf::Vector2i& pos)
 	{
-		assert(0 <= pos.x && pos.x < size_.x && 0 <= pos.y && pos.y < size_.y);
+		if(pos.x < 0 || pos.x >= size_.x || pos.y < 0 && pos.y >= size_.y)
+			throw std::out_of_range("");
 		return map_[pos.y * size_.x + pos.x];
 	}
 
 	uint8_t at(const sf::Vector2i& pos) const
 	{
-		assert(0 <= pos.x && pos.x < size_.x && 0 <= pos.y && pos.y < size_.y);
+		if(pos.x < 0 || pos.x >= size_.x || pos.y < 0 && pos.y >= size_.y)
+			throw std::out_of_range("");
 		return map_[pos.y * size_.x + pos.x];
 	}
 
@@ -504,7 +585,7 @@ public:
 
 	/**
 	 * @brief 获取 XSB 格式的地图数据.
-	 * 
+	 *
 	 * @return std::string XSB 格式的地图数据.
 	 */
 	std::string map() const
@@ -514,7 +595,7 @@ public:
 		{
 			for(int x = 0; x < size().x; x++)
 			{
-				switch(at({x, y}) & ~(Tile::Deadlocked | Tile::PlayerMoveable | Tile::CrateMoveable))
+				switch(at({x, y}) & (Tile::Wall | Tile::Crate | Tile::Target | Tile::Player))
 				{
 				case Tile::Wall:
 					map.push_back('#');
@@ -552,9 +633,9 @@ public:
 
 	/**
 	 * @brief 从 XSB 文件加载关卡.
-	 * 
+	 *
 	 * @param path XSB 文件路径.
-	 * 
+	 *
 	 * @return std::vector<Level> 从文件中加载的关卡.
 	 */
 	static std::vector<Level> load(const std::filesystem::path& path)
@@ -632,7 +713,7 @@ private:
 	 * @brief 检查箱子死否一定锁死.
 	 *
 	 * @param position 箱子位置.
-	 * 
+	 *
 	 * @return true  箱子一定锁死.
 	 * @return false 箱子不一定锁死.
 	 */
@@ -648,7 +729,7 @@ private:
 		}
 		{
 			const sf::Vector2i directions[8] = {{0, -1}, {1, -1}, {1, 0}, {1, 1}, {0, 1}, {-1, 1}, {-1, 0}, {-1, -1}};
-			for (size_t i = 0; i < 8; i += 2)
+			for(size_t i = 0; i < 8; i += 2)
 			{
 				if((at(position + directions[i]) & Tile::Crate) &&
 				   (at(position + directions[i + 1]) & (Tile::Wall | Tile::Deadlocked)) &&
@@ -693,25 +774,6 @@ private:
 		std::transform(map_.cbegin(), map_.cend(), map_.begin(), [tiles](auto t) { return t & ~tiles; });
 	}
 
-	sf::Vector2i movement_to_direction(char c) const
-	{
-		switch(std::tolower(c))
-		{
-		case 'u':
-			return {0, -1};
-
-		case 'd':
-			return {0, 1};
-
-		case 'l':
-			return {-1, 0};
-
-		case 'r':
-			return {1, 0};
-		}
-		throw std::invalid_argument("invalid movement");
-	}
-
 	sf::Vector2i                                 size_;
 	std::vector<uint8_t>                         map_;
 	std::unordered_map<std::string, std::string> metadata_;
@@ -720,4 +782,7 @@ private:
 	std::unordered_set<sf::Vector2i> crate_positions_;
 	std::unordered_set<sf::Vector2i> target_positions_;
 	std::string                      movements_;
+
+	int  rotation_ = 0;
+	bool flipped_  = false;
 };
