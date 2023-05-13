@@ -239,26 +239,19 @@ public:
 	 */
 	void render(sf::RenderWindow& window, const Material& material)
 	{
-		const sf::Texture* player_texture;
+		const sf::Sprite* player_texture;
 		sf::Vector2i       player_dir;
 		if(movements_.empty())
 			player_dir = {0, 1};
 		else
 			player_dir = movement_to_direction(movements_.back());
-		if(player_dir.y == -1)
-			player_texture = &material.player_up_texture;
-		else if(player_dir.y == 1)
-			player_texture = &material.player_down_texture;
-		else if(player_dir.x == -1)
-			player_texture = &material.player_left_texture;
-		else if(player_dir.x == 1)
-			player_texture = &material.player_right_texture;
 
 		// TODO: 需要重构, 可读性较差, 非必要的重复计算
 		const auto window_size   = sf::Vector2f(window.getSize());
 		const auto window_center = window_size / 2.f;
 
-		const auto origin_tile_size = sf::Vector2f(material.wall_texture.getSize());
+		const auto origin_tile_size =
+		    sf::Vector2f(static_cast<float>(material.tile_size), static_cast<float>(material.tile_size));
 		const auto origin_map_size  = sf::Vector2f(origin_tile_size.x * size().x, origin_tile_size.y * size().y);
 
 		const auto scale     = std::min({window_size.x / origin_map_size.x, window_size.y / origin_map_size.y, 1.f});
@@ -279,7 +272,7 @@ public:
 
 				if(tiles & Tile::Floor)
 				{
-					sprite.setTexture(material.floor_texture);
+					material.set_texture_floor(sprite);
 					window.draw(sprite);
 					tiles &= ~Tile::Floor;
 				}
@@ -290,30 +283,30 @@ public:
 				switch(tiles & ~Tile::CrateMoveable)
 				{
 				case Tile::Wall:
-					sprite.setTexture(material.wall_texture);
+					material.set_texture_wall(sprite);
 					break;
 
 				case Tile::Target:
-					sprite.setTexture(material.target_texture);
+					material.set_texture_target(sprite);
 					break;
 
 				case Tile::Crate:
-					sprite.setTexture(material.crate_texture);
+					material.set_texture_crate(sprite);
 					break;
 
 				case Tile::Target | Tile::Crate:
 					sprite.setColor(sf::Color(180, 180, 180));
-					sprite.setTexture(material.crate_texture);
+					material.set_texture_crate(sprite);
 					break;
 
 				case Tile::Target | Tile::Player:
-					sprite.setTexture(material.target_texture);
+					material.set_texture_target(sprite);
 					window.draw(sprite);
-					sprite.setTexture(*player_texture);
+					material.set_texture_player(sprite, player_dir);
 					break;
 
 				case Tile::Player:
-					sprite.setTexture(*player_texture);
+					material.set_texture_player(sprite, player_dir);
 					break;
 				}
 				window.draw(sprite);
@@ -494,8 +487,9 @@ public:
 		const auto window_size   = sf::Vector2f(window.getSize());
 		const auto window_center = window_size / 2.f;
 
-		const auto origin_tile_size = sf::Vector2f(material.wall_texture.getSize());
-		const auto origin_map_size  = sf::Vector2f(origin_tile_size.x * size().x, origin_tile_size.y * size().y);
+		const auto origin_tile_size =
+		    sf::Vector2f(static_cast<float>(material.tile_size), static_cast<float>(material.tile_size));
+		const auto origin_map_size = sf::Vector2f(origin_tile_size.x * size().x, origin_tile_size.y * size().y);
 
 		const auto scale     = std::min({window_size.x / origin_map_size.x, window_size.y / origin_map_size.y, 1.f});
 		const auto tile_size = origin_tile_size * scale;

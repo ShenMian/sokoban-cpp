@@ -4,39 +4,78 @@
 #pragma once
 
 #include <SFML/Graphics.hpp>
+#include <filesystem>
 
 struct Material
 {
-	Material()
+	Material(const std::filesystem::path& path) { load_from_file(path); }
+
+	void load_from_file(const std::filesystem::path& path)
 	{
-		floor_texture.loadFromFile("img/floor.png");
-		wall_texture.loadFromFile("img/wall.png");
-		crate_texture.loadFromFile("img/crate.png");
-		target_texture.loadFromFile("img/target.png");
-
-		player_up_texture.loadFromFile("img/player_up.png");
-		player_down_texture.loadFromFile("img/player_down.png");
-		player_left_texture.loadFromFile("img/player_left.png");
-		player_right_texture.loadFromFile("img/player_right.png");
-
-		floor_texture.setSmooth(true);
-		wall_texture.setSmooth(true);
-		crate_texture.setSmooth(true);
-		target_texture.setSmooth(true);
-
-		player_up_texture.setSmooth(true);
-		player_down_texture.setSmooth(true);
-		player_left_texture.setSmooth(true);
-		player_right_texture.setSmooth(true);
+		texture.loadFromFile(path.string());
+		texture.setSmooth(true);
 	}
 
-	sf::Texture floor_texture;
-	sf::Texture wall_texture;
-	sf::Texture crate_texture;
-	sf::Texture target_texture;
+	void set_texture_floor(sf::Sprite& sprite) const
+	{
+		sprite.setTexture(texture);
+		sprite.setTextureRect({0 * tile_size, 0 * tile_size, tile_size, tile_size});
+	}
 
-	sf::Texture player_up_texture;
-	sf::Texture player_down_texture;
-	sf::Texture player_left_texture;
-	sf::Texture player_right_texture;
+	void set_texture_wall(sf::Sprite& sprite) const
+	{
+		sprite.setTexture(texture);
+		sprite.setTextureRect({1 * tile_size, 0 * tile_size, tile_size, tile_size});
+	}
+
+	void set_texture_crate(sf::Sprite& sprite) const
+	{
+		sprite.setTexture(texture);
+		sprite.setTextureRect({2 * tile_size, 0 * tile_size, tile_size, tile_size});
+	}
+
+	void set_texture_target(sf::Sprite& sprite) const
+	{
+		sprite.setTexture(texture);
+		sprite.setTextureRect({3 * tile_size, 0 * tile_size, tile_size, tile_size});
+	}
+
+	void set_texture_player(sf::Sprite& sprite, const sf::Vector2i& direction) const
+	{
+		if(direction.y == -1)
+			set_texture_player_up(sprite);
+		else if(direction.y == 1)
+			set_texture_player_down(sprite);
+		else if(direction.x == -1)
+			set_texture_player_left(sprite);
+		else if(direction.x == 1)
+			set_texture_player_right(sprite);
+	}
+
+	void set_texture_player_up(sf::Sprite& sprite) const
+	{
+		sprite.setTexture(texture);
+		sprite.setTextureRect({0 * tile_size, 1 * tile_size, tile_size, tile_size});
+	}
+
+	void set_texture_player_right(sf::Sprite& sprite) const
+	{
+		sprite.setTexture(texture);
+		sprite.setTextureRect({1 * tile_size, 1 * tile_size, tile_size, tile_size});
+	}
+
+	void set_texture_player_down(sf::Sprite& sprite) const
+	{
+		sprite.setTexture(texture);
+		sprite.setTextureRect({2 * tile_size, 1 * tile_size, tile_size, tile_size});
+	}
+
+	void set_texture_player_left(sf::Sprite& sprite) const
+	{
+		sprite.setTexture(texture);
+		sprite.setTextureRect({3 * tile_size, 1 * tile_size, tile_size, tile_size});
+	}
+
+	sf::Texture texture;
+	const int   tile_size = 64;
 };

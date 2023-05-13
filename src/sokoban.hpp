@@ -14,14 +14,10 @@
 class Sokoban
 {
 public:
-	Sokoban() : database_("database.db"), level_("")
-	{
-	}
+	Sokoban() : level_(""), material_("img/default.png"), database_("database.db") {}
 
 	void run(int argc, char* argv[])
 	{
-		create_window();
-
 		load_sounds();
 		background_music_.play();
 
@@ -51,6 +47,9 @@ public:
 			window_.setTitle("Sokoban - " + level_.metadata().at("title"));
 		database_.upsert_level_history(level_);
 		level_.play(database_.get_level_history_movements(level_));
+
+
+		create_window();
 
 		input_thread_ = std::jthread([&](std::stop_token token) {
 			while(!token.stop_requested())
@@ -103,21 +102,10 @@ private:
 		window_.clear(sf::Color(115, 115, 115));
 	}
 
-	void print_result()
-	{
-		const auto movements = level_.movements();
-		if(level_.metadata().contains("title"))
-			std::cout << "Title: " << level_.metadata().at("title") << '\n';
-		std::cout << "Moves: " << movements.size() << '\n';
-		std::cout << "Pushs: "
-		          << std::count_if(movements.begin(), movements.end(), [](auto c) { return std::isupper(c); }) << '\n';
-		std::cout << "LURD : " << movements << '\n';
-		std::cout << '\n';
-	}
-
 	void create_window()
 	{
-		window_.create(sf::VideoMode{2560 / 2, 1440 / 2}, "Sokoban", sf::Style::Close);
+		const auto mode = sf::VideoMode::getDesktopMode();
+		window_.create(sf::VideoMode{mode.width / 2, mode.height / 2}, "Sokoban", sf::Style::Close);
 		sf::Image icon;
 		icon.loadFromFile("img/crate.png");
 		window_.setIcon(icon.getSize().x, icon.getSize().y, icon.getPixelsPtr());
@@ -127,10 +115,11 @@ private:
 	void load_sounds()
 	{
 		passed_buffer_.loadFromFile("audio/success.wav");
+		background_music_.setVolume(80.f);
 		passed_sound_.setBuffer(passed_buffer_);
 
 		background_music_.openFromFile("audio/background.wav");
-		background_music_.setVolume(80.f);
+		background_music_.setVolume(60.f);
 		background_music_.setLoop(true);
 	}
 
@@ -241,6 +230,18 @@ private:
 			level_.play(level_.metadata().at("answer"), std::chrono::milliseconds(200));
 			keyboard_input_clock_.restart();
 		}
+	}
+
+	void print_result()
+	{
+		const auto movements = level_.movements();
+		if(level_.metadata().contains("title"))
+			std::cout << "Title: " << level_.metadata().at("title") << '\n';
+		std::cout << "Moves: " << movements.size() << '\n';
+		std::cout << "Pushs: "
+		          << std::count_if(movements.begin(), movements.end(), [](auto c) { return std::isupper(c); }) << '\n';
+		std::cout << "LURD : " << movements << '\n';
+		std::cout << '\n';
 	}
 
 	Level level_;
