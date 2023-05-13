@@ -91,103 +91,55 @@ public:
 	/**
 	 * @brief 构造函数.
 	 *
-	 * @param data XSB 格式数据.
-	 * @param size 地图大小.
+	 * @param data XSB 格式地图数据.
 	 */
-	Level(const std::string& data, const sf::Vector2i& size) : size_(size)
+	Level(const std::string& data)
 	{
-		map_.resize(size.x * size.y);
+		std::string  map;
+		sf::Vector2i size;
+		std::string  metadata;
 
-		int                y = 0;
 		std::istringstream stream(data);
+
 		for(std::string line; std::getline(stream, line);)
 		{
-			// 跳过注释
 			if(line.front() == ';')
 				continue;
 
-			// 解析元数据
-			const auto it = line.find(":");
-			if(it != std::string::npos)
+			if(line.find(":") != std::string::npos)
 			{
-				auto key   = line.substr(0, it);
-				auto value = line.substr(it + 1);
-
-				std::transform(key.cbegin(), key.cend(), key.begin(), [](auto c) { return std::tolower(c); });
-
-				while(value.starts_with(" "))
-					value.erase(0, 1);
-				while(value.ends_with(" "))
-					value.pop_back();
-
-				if(key == "comment")
+				if(line.substr(0, 8) == "Comment:")
 				{
-					std::getline(stream, line);
-					while(line.substr(0, 12) != "Comment-End:")
+					do
 					{
-						value += line + '\n';
+						metadata += line + '\n';
 						std::getline(stream, line);
-					}
+					} while(line.substr(0, 12) != "Comment-End:");
 				}
-
-				metadata_.emplace(key, value);
+				metadata += line + '\n';
 				continue;
 			}
 
-			// 解析地图
-			for(int x = 0; x < static_cast<int>(line.size()); x++)
-			{
-				switch(line[x])
-				{
-				case ' ':
-				case '-':
-				case '_':
-					break;
+			map += line + '\n';
 
-				case '#':
-					at(x, y) |= Tile::Wall;
-					break;
-
-				case 'X':
-				case '$':
-					at(x, y) |= Tile::Crate;
-					crate_positions_.emplace(x, y);
-					break;
-
-				case '.':
-					at(x, y) |= Tile::Target;
-					target_positions_.emplace(x, y);
-					break;
-
-				case '@':
-					at(x, y) |= Tile::Player;
-					player_position_ = {x, y};
-					break;
-
-				case '*':
-					at(x, y) |= Tile::Crate | Tile::Target;
-					crate_positions_.emplace(x, y);
-					target_positions_.emplace(x, y);
-					break;
-
-				case '+':
-					at(x, y) |= Tile::Player | Tile::Target;
-					player_position_ = {x, y};
-					target_positions_.emplace(x, y);
-					break;
-
-				case '\r':
-					break;
-
-				default:
-					throw std::runtime_error("unknown symbol");
-				}
-			}
-			y++;
+			size.x = std::max(static_cast<int>(line.size()), size.x);
+			size.y++;
 		}
 
-		// 填充地板
-		fill(player_position_, Tile::Floor, Tile::Wall);
+		*this = Level(map, size, metadata);
+	}
+
+	/**
+	 * @brief 构造函数.
+	 *
+	 * @param map      XSB 格式地图数据.
+	 * @param size     地图大小.
+	 * @param metadata XSB 格式元数据.
+	 */
+	Level(const std::string& map, const sf::Vector2i& size, const std::string& metadata)
+	{
+		parse_map(map, size);
+		parse_metadata(metadata);
 	}
 
 	/**
@@ -244,7 +196,6 @@ public:
 			return;
 
 		const auto last_direction = movement_to_direction(movements_.back());
-		movements_.pop_back();
 
 		if(std::isupper(movements_.back()))
 		{
@@ -259,6 +210,8 @@ public:
 		at(player_position_) &= ~Tile::Player;
 		at(player_last_pos) |= Tile::Player;
 		player_position_ = player_last_pos;
+
+		movements_.pop_back();
 	}
 
 	/**
@@ -441,9 +394,9 @@ public:
 
 		auto flip = [center_x = (size().x - 1) / 2.f](auto pos) {
 			if(pos.x < center_x)
-				pos.x = std::ceil(center_x + std::abs(pos.x - center_x));
+				pos.x = static_cast<int>(center_x + std::abs(pos.x - center_x));
 			else
-				pos.x = std::floor(center_x - std::abs(pos.x - center_x));
+				pos.x = static_cast<int>(center_x - std::abs(pos.x - center_x));
 			return pos;
 		};
 
@@ -649,53 +602,152 @@ public:
 		if(!file)
 			throw std::runtime_error("failed to open file");
 
-		std::vector<Level> levels;
-
 		// warning: 块注释必须被 "Comment:" 和 "Comment-End:" 包裹, 区分大小写
 
-		std::string data;
-		int         rows = 0, cols = 0;
-		for(std::string line; std::getline(file, line);)
+		std::vector<Level> levels;
+		while(!file.eof())
 		{
-			// 创建关卡, 关卡以空行分割
-			if(line.empty())
+			std::string data;
+			for(std::string line; std::getline(file, line);)
 			{
-				// 仅创建有地图数据的关卡
-				if(!data.empty() && rows + cols > 0)
-					levels.emplace_back(data, sf::Vector2i(cols, rows));
-				data.clear();
-				rows = cols = 0;
-				continue;
-			}
+				// 创建关卡, 关卡以空行分割
+				if(line.empty())
+				{
+					levels.emplace_back(data);
 
-			// 跳过注释
-			if(line.front() == ';')
-				continue;
-			data += line + '\n';
-
-			// 跳过元数据
-			if(line.find(":") != std::string::npos)
-			{
+					// 仅保留有地图数据的关卡
+					if(levels.back().map().empty())
+						levels.pop_back();
+					data.clear();
+					continue;
+				}
 				if(line.substr(0, 8) == "Comment:")
 				{
 					do
 					{
-						std::getline(file, line);
 						data += line + '\n';
+						std::getline(file, line);
 					} while(line.substr(0, 12) != "Comment-End:");
 				}
-				continue;
+				data += line + '\n';
 			}
-			rows++;
-			cols = std::max(static_cast<int>(line.size()), cols);
+			levels.emplace_back(data);
+			if(levels.back().map().empty())
+				levels.pop_back();
 		}
-		if(!data.empty() && rows + cols > 0)
-			levels.emplace_back(data, sf::Vector2i(cols, rows));
 
 		return levels;
 	}
 
 private:
+	/**
+	 * @brief 解析地图.
+	 *
+	 * @param map XSB 格式地图数据.
+	 */
+	void parse_map(const std::string& map, const sf::Vector2i& size)
+	{
+		map_.clear();
+		map_.resize(size.x * size.y);
+		size_ = size;
+
+		int                y = 0;
+		std::istringstream stream(map);
+		for(std::string line; std::getline(stream, line);)
+		{
+			for(int x = 0; x < static_cast<int>(line.size()); x++)
+			{
+				switch(line[x])
+				{
+				case ' ':
+				case '-':
+				case '_':
+					break;
+
+				case '#':
+					at(x, y) |= Tile::Wall;
+					break;
+
+				case 'X':
+				case '$':
+					at(x, y) |= Tile::Crate;
+					crate_positions_.emplace(x, y);
+					break;
+
+				case '.':
+					at(x, y) |= Tile::Target;
+					target_positions_.emplace(x, y);
+					break;
+
+				case '@':
+					at(x, y) |= Tile::Player;
+					player_position_ = {x, y};
+					break;
+
+				case '*':
+					at(x, y) |= Tile::Crate | Tile::Target;
+					crate_positions_.emplace(x, y);
+					target_positions_.emplace(x, y);
+					break;
+
+				case '+':
+					at(x, y) |= Tile::Player | Tile::Target;
+					player_position_ = {x, y};
+					target_positions_.emplace(x, y);
+					break;
+
+				case '\r':
+					break;
+
+				default:
+					throw std::runtime_error("unknown symbol");
+				}
+			}
+			y++;
+		}
+
+		// 填充地板
+		if(size.x + size.y > 0)
+			fill(player_position_, Tile::Floor, Tile::Wall);
+	}
+
+	/**
+	 * @brief 解析元数据.
+	 *
+	 * @param data XSB 格式元数据.
+	 */
+	void parse_metadata(const std::string& metadata)
+	{
+		std::istringstream stream(metadata);
+		for(std::string line; std::getline(stream, line);)
+		{
+			const auto it = line.find(":");
+			assert(it != std::string::npos);
+
+			auto key   = line.substr(0, it);
+			auto value = line.substr(it + 1);
+
+			std::transform(key.cbegin(), key.cend(), key.begin(), [](auto c) { return std::tolower(c); });
+
+			while(value.starts_with(" "))
+				value.erase(0, 1);
+			while(value.ends_with(" "))
+				value.pop_back();
+
+			if(key == "comment")
+			{
+				std::getline(stream, line);
+				while(line.substr(0, 12) != "Comment-End:")
+				{
+					value += line + '\n';
+					std::getline(stream, line);
+				}
+			}
+
+			metadata_.emplace(key, value);
+		}
+	}
+
 	void check_deadlock(const sf::Vector2i& position)
 	{
 		if(!is_crate_deadlocked(position))

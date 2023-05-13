@@ -3,28 +3,19 @@
 
 #include "level.hpp"
 #include "material.hpp"
+#include "database.hpp"
 #include <SFML/Audio.hpp>
 #include <SFML/Graphics.hpp>
 #include <SQLiteCpp/Database.h>
-#include <array>
 #include <iostream>
+#include <optional>
 #include <thread>
 
 class Sokoban
 {
 public:
-	Sokoban() : database_("database.db", SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE)
+	Sokoban() : database_("database.db"), level_("")
 	{
-		// database_.exec("DROP TABLE IF EXISTS tb_levels");
-		database_.exec("CREATE TABLE IF NOT EXISTS tb_levels ("
-		               "	id INTEGER PRIMARY KEY AUTOINCREMENT,"
-		               "	title TEXT,"
-		               "	author TEXT,"
-		               "	data TEXT NOT NULL,"
-		               "	crc32 INTEGER NOT NULL,"
-		               "	answer TEXT,"
-		               "	date DATE NOT NULL"
-		               ")");
 	}
 
 	void run(int argc, char* argv[])
@@ -34,17 +25,31 @@ public:
 		load_sounds();
 		background_music_.play();
 
-		// const auto path = std::filesystem::path(argv[0]).parent_path() / "level" / "box_world.xsb";
-		const auto path = std::filesystem::path(argv[0]).parent_path() / "level" / "default.xsb";
-		load_levels_from_file(path);
+		database_.import_levels_from_file(std::filesystem::path(argv[0]).parent_path() / "level" / "default.xsb");
+		database_.import_levels_from_file(std::filesystem::path(argv[0]).parent_path() / "level" / "box_world.xsb");
 
-		if(argc == 2)
-			level_ = levels_.begin() + std::atoi(argv[1]) - 1;
+		const std::string clipboard = sf::Clipboard::getString();
+		if(!clipboard.empty() && (clipboard.front() == '-' || clipboard.front() == '#'))
+		{
+			try
+			{
+				Level level(clipboard);
+				database_.import_level(level);
+				database_.add_level_history(level);
+			}
+			catch(...)
+			{
+			}
+		}
 
-		if(sf::Clipboard::getString().substring(0, 1) == "-" || sf::Clipboard::getString().substring(0, 1) == "#")
-			load_level_from_clipboard();
+		level_ = database_.get_level_by_id(database_.get_latest_level_id().value_or(1)).value();
 
-		input_thread = std::jthread([&](std::stop_token token) {
+		if(level_.metadata().contains("title"))
+			window_.setTitle("Sokoban - " + level_.metadata().at("title"));
+		database_.add_level_history(level_);
+		level_.play(database_.get_level_history_movements(level_));
+
+		input_thread_ = std::jthread([&](std::stop_token token) {
 			while(!token.stop_requested())
 				handle_input();
 		});
@@ -55,36 +60,50 @@ public:
 
 			render();
 
-			if(!level_->movements().empty() && std::isupper(level_->movements().back()) && level_->passed())
+			if(!level_.movements().empty() && std::isupper(level_.movements().back()) && level_.passed())
 			{
 				render();
 
-				success_sound_.play();
+				passed_sound_.play();
 				print_result();
-				std::this_thread::sleep_for(std::chrono::seconds(2));
+				database_.update_level_answer(level_);
+				level_.reset();
+				database_.update_history_movements(level_);
+				std::this_thread::sleep_for(std::chrono::milliseconds(passed_buffer_.getDuration().asMilliseconds()));
 
-				level_++;
-				assert(level_ != levels_.end());
+				// 加载下一个没有答案的关卡
+				auto id = database_.get_level_id(level_).value();
+				while (true)
+				{
+					auto level = database_.get_level_by_id(++id);
+					if(level.has_value() && !level.value().metadata().contains("answer"))
+					{
+						level_ = level.value();
+						break;
+					}
+				}
 
-				if(level_->metadata().contains("title"))
-					window_.setTitle("Sokoban - " + level_->metadata().at("title"));
+				database_.add_level_history(level_);
+				if(level_.metadata().contains("title"))
+					window_.setTitle("Sokoban - " + level_.metadata().at("title"));
 			}
 		}
+		database_.update_history_movements(level_);
 	}
 
 private:
 	void render()
 	{
-		level_->render(window_, material_);
+		level_.render(window_, material_);
 		window_.display();
 		window_.clear(sf::Color(115, 115, 115));
 	}
 
 	void print_result()
 	{
-		const auto movements = level_->movements();
-		if(level_->metadata().contains("title"))
-			std::cout << "Title: " << level_->metadata().at("title") << '\n';
+		const auto movements = level_.movements();
+		if(level_.metadata().contains("title"))
+			std::cout << "Title: " << level_.metadata().at("title") << '\n';
 		std::cout << "Moves: " << movements.size() << '\n';
 		std::cout << "Pushs: "
 		          << std::count_if(movements.begin(), movements.end(), [](auto c) { return std::isupper(c); }) << '\n';
@@ -103,63 +122,12 @@ private:
 
 	void load_sounds()
 	{
-		success_buffer_.loadFromFile("audio/success.wav");
-		success_sound_.setBuffer(success_buffer_);
+		passed_buffer_.loadFromFile("audio/success.wav");
+		passed_sound_.setBuffer(passed_buffer_);
 
 		background_music_.openFromFile("audio/background.wav");
 		background_music_.setVolume(80.f);
 		background_music_.setLoop(true);
-	}
-
-	void load_levels_from_file(const std::filesystem::path& path)
-	{
-		levels_ = Level::load(path);
-
-		// TODO: 通关后再录入数据
-		SQLite::Statement query_level(database_, "SELECT * FROM tb_levels "
-		                                         "WHERE crc32 = ?");
-		SQLite::Statement add_level(database_, "INSERT INTO tb_levels (title, author, data, crc32, date) "
-		                                       "VALUES (?, ?, ?, ?, DATE('now'))");
-		for(const auto& level : levels_)
-		{
-			query_level.reset();
-			query_level.bind(1, level.crc32());
-			if(query_level.executeStep())
-				continue;
-
-			add_level.reset();
-			if(level.metadata().contains("title"))
-				add_level.bind(1, level.metadata().at("title"));
-			if(level.metadata().contains("author"))
-				add_level.bind(2, level.metadata().at("author"));
-			add_level.bind(3, level.map());
-			add_level.bind(4, level.crc32());
-			add_level.exec();
-		}
-
-		level_ = levels_.begin();
-		if(level_->metadata().contains("title"))
-			window_.setTitle("Sokoban - " + level_->metadata().at("title"));
-	}
-
-	void load_level_from_clipboard()
-	{
-		const std::string  data = sf::Clipboard::getString();
-		int                rows = 0, cols = 0;
-		std::istringstream stream(data);
-		for(std::string line; std::getline(stream, line);)
-		{
-			if(line.front() == ';' || line.find(":") != std::string::npos)
-				continue;
-			cols = std::max(static_cast<int>(line.size()), cols);
-			rows++;
-		}
-		levels_.clear();
-		levels_.emplace_back(data, sf::Vector2i(cols, rows));
-
-		level_ = levels_.begin();
-		if(level_->metadata().contains("title"))
-			window_.setTitle("Sokoban - " + level_->metadata().at("title"));
 	}
 
 	void handle_window_event()
@@ -168,8 +136,8 @@ private:
 		{
 			if(event.type == sf::Event::Closed)
 			{
-				input_thread.request_stop();
-				input_thread.join();
+				input_thread_.request_stop();
+				input_thread_.join();
 				window_.close();
 			}
 		}
@@ -188,18 +156,18 @@ private:
 		if(!sf::Mouse::isButtonPressed(sf::Mouse::Left))
 			return;
 
-		const auto mouse_pos = level_->to_map_position(sf::Mouse::getPosition(window_), window_, material_);
-		if(mouse_pos.x < 1 || mouse_pos.x > level_->size().x || mouse_pos.y < 1 || mouse_pos.y > level_->size().y)
+		const auto mouse_pos = level_.to_map_position(sf::Mouse::getPosition(window_), window_, material_);
+		if(mouse_pos.x < 1 || mouse_pos.x > level_.size().x || mouse_pos.y < 1 || mouse_pos.y > level_.size().y)
 			return;
 
 		// if(level_->at(mouse_pos) & Tile::Floor)
-		if(level_->at(mouse_pos) & (Tile::Floor | Tile::Crate))
+		if(level_.at(mouse_pos) & (Tile::Floor | Tile::Crate))
 		{
-			// 移动角色
+			// 移动角色到点击位置
 
 			// 反着写是因为起始点可以为箱子, 但结束点不能
-			auto        path        = level_->find_path(mouse_pos, level_->player_position());
-			auto        current_pos = level_->player_position();
+			auto        path        = level_.find_path(mouse_pos, level_.player_position());
+			auto        current_pos = level_.player_position();
 			std::string movements;
 			while(!path.empty())
 			{
@@ -215,7 +183,7 @@ private:
 					movements += 'r';
 				current_pos += direction;
 			}
-			level_->play(movements, std::chrono::milliseconds(100));
+			level_.play(movements, std::chrono::milliseconds(100));
 		}
 	}
 
@@ -226,68 +194,65 @@ private:
 		if(sf::Keyboard::isKeyPressed(sf::Keyboard::W) || sf::Keyboard::isKeyPressed(sf::Keyboard::Up) ||
 		   sf::Keyboard::isKeyPressed(sf::Keyboard::K))
 		{
-			level_->play("u");
+			level_.play("u");
 			keyboard_input_clock_.restart();
 		}
 		else if(sf::Keyboard::isKeyPressed(sf::Keyboard::S) || sf::Keyboard::isKeyPressed(sf::Keyboard::Down) ||
 		        sf::Keyboard::isKeyPressed(sf::Keyboard::J))
 		{
-			level_->play("d");
+			level_.play("d");
 			keyboard_input_clock_.restart();
 		}
 		else if(sf::Keyboard::isKeyPressed(sf::Keyboard::A) || sf::Keyboard::isKeyPressed(sf::Keyboard::Left) ||
 		        sf::Keyboard::isKeyPressed(sf::Keyboard::H))
 		{
-			level_->play("l");
+			level_.play("l");
 			keyboard_input_clock_.restart();
 		}
 		else if(sf::Keyboard::isKeyPressed(sf::Keyboard::D) || sf::Keyboard::isKeyPressed(sf::Keyboard::Right) ||
 		        sf::Keyboard::isKeyPressed(sf::Keyboard::L))
 		{
-			level_->play("r");
+			level_.play("r");
 			keyboard_input_clock_.restart();
 		}
 		if(sf::Keyboard::isKeyPressed(sf::Keyboard::BackSpace))
 		{
-			level_->undo();
+			level_.undo();
 			keyboard_input_clock_.restart();
 		}
 		if(sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
 		{
-			level_->reset();
+			level_.reset();
 			keyboard_input_clock_.restart();
 		}
 		if(sf::Keyboard::isKeyPressed(sf::Keyboard::P))
 		{
-			/*
-			if(map_.get_metadata("lurd").empty())
-			    return;
-			if (!map_.get_movements().empty())
+			if(!level_.metadata().contains("answer"))
+				return;
+			if(!level_.movements().empty())
 			{
-			    load_levels();
-			    std::this_thread::sleep_for(std::chrono::seconds(1));
+				level_.reset();
+				std::this_thread::sleep_for(std::chrono::seconds(1));
 			}
-			map_.play(map_.get_metadata("lurd"), std::chrono::milliseconds(200));
+			level_.play(level_.metadata().at("answer"), std::chrono::milliseconds(200));
 			keyboard_input_clock_.restart();
-			*/
 		}
 	}
 
-	std::vector<Level>::iterator level_;
-	std::vector<Level>           levels_;
+	Level level_;
 
 	sf::RenderWindow window_;
 	Material         material_;
 
-	sf::SoundBuffer success_buffer_;
-	sf::Sound       success_sound_;
+	sf::SoundBuffer passed_buffer_;
+	sf::Sound       passed_sound_;
 	sf::Music       background_music_;
 
 	sf::Clock    keyboard_input_clock_;
 	sf::Vector2i selected_crate_ = {-1, -1};
-	std::jthread input_thread;
+	std::jthread input_thread_;
 
-	SQLite::Database database_;
+	Database database_;
 
 	// std::vector<sf::Keyboard::Key, std::chrono::duration<std::chrono::milliseconds>> key_pressed;
 };
