@@ -120,17 +120,44 @@ public:
 		return Level(data);
 	}
 
-	bool update_level_answer(Level level)
+	/**
+	 * @brief 更新关卡答案.
+	 *
+	 * @param level_id 关卡 ID.
+	 * @param answer   关卡答案.
+	 */
+	bool update_level_answer(int level_id, const std::string& answer)
 	{
 		SQLite::Statement update_answer(database_, "UPDATE tb_level "
 		                                           "SET answer = ? "
-		                                           "WHERE id = ?");
-		update_answer.bind(1, level.movements());
-		level.reset();
-		update_answer.bind(2, get_level_id(level).value());
+		                                           "WHERE id = ? AND EXISTS ("
+		                                           "	SELECT * FROM tb_level WHERE id = ? AND (answer IS NULL OR LENGTH(answer) > LENGTH(?))"
+		                                           ")");
+		update_answer.bind(1, answer);
+		update_answer.bind(2, level_id);
+		update_answer.bind(3, level_id);
+		update_answer.bind(4, answer);
 		return update_answer.exec();
 	}
 
+	/**
+	 * @brief 更新关卡答案.
+	 *
+	 * @param level 已通关的关卡.
+	 */
+	bool update_level_answer(Level level)
+	{
+		assert(level.passed());
+		const auto answer = level.movements();
+		level.reset();
+		return update_level_answer(get_level_id(level).value(), answer);
+	}
+
+	/**
+	 * @brief 更新关卡历史移动.
+	 *
+	 * @param level 关卡.
+	 */
 	bool update_history_movements(Level level)
 	{
 		SQLite::Statement update_movements(database_, "UPDATE tb_history "
@@ -142,16 +169,28 @@ public:
 		return update_movements.exec();
 	}
 
-	void add_level_history(const Level& level)
+	/**
+	 * @brief 添加关卡历史.
+	 *
+	 * @param level 关卡.
+	 */
+	bool upsert_level_history(const Level& level)
 	{
-		SQLite::Statement add_history(database_, "INSERT INTO tb_history(level_id, datetime) "
-		                                         "SELECT ?, DATETIME('now') "
-		                                         "WHERE NOT EXISTS("
-		                                         "	SELECT 1 FROM tb_history WHERE level_id = ?"
-		                                         ")");
-		add_history.bind(1, get_level_id(level).value());
-		add_history.bind(2, get_level_id(level).value());
-		add_history.exec();
+		return upsert_level_history(get_level_id(level).value());
+	}
+
+	/**
+	 * @brief 添加关卡历史.
+	 *
+	 * @param level_id 关卡 ID.
+	 */
+	bool upsert_level_history(int level_id)
+	{
+		SQLite::Statement upsert_history(database_, "INSERT OR IGNORE INTO tb_history(level_id, datetime) "
+		                                            "VALUES(?, DATETIME('now')) "
+		                                            "ON CONFLICT(level_id) DO UPDATE SET datetime = DATETIME('now')");
+		upsert_history.bind(1, level_id);
+		return upsert_history.exec();
 	}
 
 	/**
@@ -167,6 +206,11 @@ public:
 		return query_latest_history.getColumn("level_id");
 	}
 
+	/**
+	 * @brief 获取关卡历史移动.
+	 *
+	 * @param level 关卡.
+	 */
 	std::string get_level_history_movements(const Level& level)
 	{
 		SQLite::Statement query_movements(database_, "SELECT movements FROM tb_history "

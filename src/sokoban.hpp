@@ -35,18 +35,21 @@ public:
 			{
 				Level level(clipboard);
 				database_.import_level(level);
-				database_.add_level_history(level);
+				database_.upsert_level_history(level_);
 			}
 			catch(...)
 			{
 			}
 		}
 
+		if (argc == 2)
+			database_.upsert_level_history(std::atoi(argv[1]));
+
 		level_ = database_.get_level_by_id(database_.get_latest_level_id().value_or(1)).value();
 
 		if(level_.metadata().contains("title"))
 			window_.setTitle("Sokoban - " + level_.metadata().at("title"));
-		database_.add_level_history(level_);
+		database_.upsert_level_history(level_);
 		level_.play(database_.get_level_history_movements(level_));
 
 		input_thread_ = std::jthread([&](std::stop_token token) {
@@ -83,7 +86,8 @@ public:
 					}
 				}
 
-				database_.add_level_history(level_);
+				database_.upsert_level_history(level_);
+				level_.play(database_.get_level_history_movements(level_));
 				if(level_.metadata().contains("title"))
 					window_.setTitle("Sokoban - " + level_.metadata().at("title"));
 			}
