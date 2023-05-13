@@ -111,11 +111,11 @@ public:
 			return std::nullopt;
 		std::string data;
 		if(!query_level.getColumn("title").isNull())
-			data += "Title: " + query_level.getColumn("title") + '\n';
+			data += "Title: " + query_level.getColumn("title").getString() + '\n';
 		if(!query_level.getColumn("author").isNull())
-			data += "Author: " + query_level.getColumn("author") + '\n';
+			data += "Author: " + query_level.getColumn("author").getString() + '\n';
 		if(!query_level.getColumn("answer").isNull())
-			data += "Answer: " + query_level.getColumn("answer") + '\n';
+			data += "Answer: " + query_level.getColumn("answer").getString() + '\n';
 		data += query_level.getColumn("map").getString();
 		return Level(data);
 	}
