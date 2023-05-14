@@ -25,13 +25,13 @@ public:
 		database_.import_levels_from_file(std::filesystem::path(argv[0]).parent_path() / "level" / "box_world.xsb");
 
 		const std::string clipboard = sf::Clipboard::getString();
-		if(!clipboard.empty() && (clipboard.front() == '-' || clipboard.front() == '#'))
+		if(!clipboard.empty() && (clipboard.front() == ';' || clipboard.front() == '-' || clipboard.front() == '#'))
 		{
 			try
 			{
 				Level level(clipboard);
 				database_.import_level(level);
-				database_.upsert_level_history(level_);
+				database_.upsert_level_history(level);
 			}
 			catch(...)
 			{
@@ -48,6 +48,7 @@ public:
 		database_.upsert_level_history(level_);
 		level_.play(database_.get_level_history_movements(level_));
 
+		// level_.transpose();
 
 		create_window();
 
@@ -71,7 +72,7 @@ public:
 				database_.update_level_answer(level_);
 				level_.reset();
 				database_.update_history_movements(level_);
-				std::this_thread::sleep_for(std::chrono::milliseconds(passed_buffer_.getDuration().asMilliseconds()));
+				std::this_thread::sleep_for(std::chrono::seconds(2));
 
 				// 加载下一个没有答案的关卡
 				auto id = database_.get_level_id(level_).value();
@@ -115,7 +116,7 @@ private:
 	void load_sounds()
 	{
 		passed_buffer_.loadFromFile("audio/success.wav");
-		background_music_.setVolume(80.f);
+		passed_sound_.setVolume(80.f);
 		passed_sound_.setBuffer(passed_buffer_);
 
 		background_music_.openFromFile("audio/background.wav");
@@ -153,31 +154,75 @@ private:
 		if(mouse_pos.x < 1 || mouse_pos.x > level_.size().x || mouse_pos.y < 1 || mouse_pos.y > level_.size().y)
 			return;
 
-		// if(level_->at(mouse_pos) & Tile::Floor)
-		if(level_.at(mouse_pos) & (Tile::Floor | Tile::Crate))
+		if(mouse_select_clock.getElapsedTime() < sf::seconds(0.25f))
+			return;
+		mouse_select_clock.restart();
+		if(selected_crate_ != sf::Vector2i(-1, -1))
+		{
+			if(level_.at(mouse_pos) & Tile::Crate && selected_crate_ != mouse_pos)
+			{
+				// 切换选中的箱子
+				level_.clear(Tile::CrateMoveable);
+				level_.calc_crate_moveable(mouse_pos);
+				selected_crate_ = mouse_pos;
+			}
+			else if(level_.at(mouse_pos) & Tile::CrateMoveable)
+			{
+				level_.clear(Tile::CrateMoveable);
+
+				// 推动选中箱子到鼠标位置
+				sf::Vector2i push_dir;
+				push_dir.x       = std::clamp(mouse_pos.x - selected_crate_.x, -1, 1);
+				push_dir.y       = std::clamp(mouse_pos.y - selected_crate_.y, -1, 1);
+				const auto start = selected_crate_ - push_dir;
+				const auto end   = mouse_pos - push_dir;
+				move_to(start, Tile::Wall | Tile::Crate);
+				move_to(end, Tile::Wall);
+			}
+			else
+			{
+				// 取消选中箱子
+				level_.clear(Tile::CrateMoveable);
+				selected_crate_ = {-1, -1};
+			}
+			return;
+		}
+		else if(level_.at(mouse_pos) & Tile::Crate)
+		{
+			// 选中鼠标处的箱子
+			level_.calc_crate_moveable(mouse_pos);
+			selected_crate_ = mouse_pos;
+			return;
+		}
+
+		if(level_.at(mouse_pos) & Tile::Floor && !(level_.at(mouse_pos) & Tile::Crate))
 		{
 			// 移动角色到点击位置
-
-			// 反着写是因为起始点可以为箱子, 但结束点不能
-			auto        path        = level_.find_path(mouse_pos, level_.player_position());
-			auto        current_pos = level_.player_position();
-			std::string movements;
-			while(!path.empty())
-			{
-				const auto direction = path.back() - current_pos;
-				path.pop_back();
-				if(direction == sf::Vector2i(0, -1))
-					movements += 'u';
-				else if(direction == sf::Vector2i(0, 1))
-					movements += 'd';
-				else if(direction == sf::Vector2i(-1, 0))
-					movements += 'l';
-				else if(direction == sf::Vector2i(1, 0))
-					movements += 'r';
-				current_pos += direction;
-			}
-			level_.play(movements, std::chrono::milliseconds(100));
+			move_to(mouse_pos, Tile::Wall | Tile::Crate);
 		}
+	}
+
+	void move_to(const sf::Vector2i& pos, uint8_t border_tiles)
+	{
+		// 反着写是因为起始点可以为箱子, 但结束点不能
+		auto        path        = level_.find_path(pos, level_.player_position(), border_tiles);
+		auto        current_pos = level_.player_position();
+		std::string movements;
+		while(!path.empty())
+		{
+			const auto direction = path.back() - current_pos;
+			path.pop_back();
+			if(direction == sf::Vector2i(0, -1))
+				movements += 'u';
+			else if(direction == sf::Vector2i(0, 1))
+				movements += 'd';
+			else if(direction == sf::Vector2i(-1, 0))
+				movements += 'l';
+			else if(direction == sf::Vector2i(1, 0))
+				movements += 'r';
+			current_pos += direction;
+		}
+		level_.play(movements, std::chrono::milliseconds(100));
 	}
 
 	void handle_keyboard_input()
@@ -230,6 +275,11 @@ private:
 			level_.play(level_.metadata().at("answer"), std::chrono::milliseconds(200));
 			keyboard_input_clock_.restart();
 		}
+		if(sf::Keyboard::isKeyPressed(sf::Keyboard::R))
+		{
+			level_.rotate();
+			keyboard_input_clock_.restart();
+		}
 	}
 
 	void print_result()
@@ -253,7 +303,7 @@ private:
 	sf::Sound       passed_sound_;
 	sf::Music       background_music_;
 
-	sf::Clock    keyboard_input_clock_;
+	sf::Clock    keyboard_input_clock_, mouse_select_clock;
 	sf::Vector2i selected_crate_ = {-1, -1};
 	std::jthread input_thread_;
 

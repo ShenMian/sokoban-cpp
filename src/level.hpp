@@ -199,6 +199,8 @@ public:
 
 		if(std::isupper(movements_.back()))
 		{
+			clear(Tile::PlayerMoveable | Tile::CrateMoveable);
+
 			// 拉箱子
 			const auto crate_pos = player_position_ + last_direction;
 			at(crate_pos) &= ~(Tile::Crate | Tile::Deadlocked);
@@ -219,6 +221,7 @@ public:
 	 */
 	void reset()
 	{
+		clear(Tile::Deadlocked | Tile::PlayerMoveable | Tile::CrateMoveable);
 		while(!movements_.empty())
 			undo();
 	}
@@ -239,8 +242,7 @@ public:
 	 */
 	void render(sf::RenderWindow& window, const Material& material)
 	{
-		const sf::Sprite* player_texture;
-		sf::Vector2i       player_dir;
+		sf::Vector2i player_dir;
 		if(movements_.empty())
 			player_dir = {0, 1};
 		else
@@ -252,7 +254,7 @@ public:
 
 		const auto origin_tile_size =
 		    sf::Vector2f(static_cast<float>(material.tile_size), static_cast<float>(material.tile_size));
-		const auto origin_map_size  = sf::Vector2f(origin_tile_size.x * size().x, origin_tile_size.y * size().y);
+		const auto origin_map_size = sf::Vector2f(origin_tile_size.x * size().x, origin_tile_size.y * size().y);
 
 		const auto scale     = std::min({window_size.x / origin_map_size.x, window_size.y / origin_map_size.y, 1.f});
 		const auto tile_size = origin_tile_size * scale;
@@ -277,10 +279,7 @@ public:
 					tiles &= ~Tile::Floor;
 				}
 
-				tiles &= ~Tile::Deadlocked;
-				tiles &= ~Tile::PlayerMoveable;
-
-				switch(tiles & ~Tile::CrateMoveable)
+				switch(tiles & ~(Tile::Deadlocked | Tile::PlayerMoveable | Tile::CrateMoveable))
 				{
 				case Tile::Wall:
 					material.set_texture_wall(sprite);
@@ -311,79 +310,57 @@ public:
 				}
 				window.draw(sprite);
 
-				/*
 				if(tiles & Tile::CrateMoveable)
 				{
-				    sf::CircleShape circle(10);
-				    circle.setFillColor(sf::Color(0, 255, 0, 100));
-				    circle.setScale(sprite.getScale());
-				    circle.setOrigin(sprite.getOrigin() - sf::Vector2f(sprite.getTexture()->getSize() / 2u) +
-				                     sf::Vector2f(circle.getRadius(), circle.getRadius()));
-				    circle.setPosition(sprite.getPosition());
-				    window.draw(circle);
-				    tiles &= ~Tile::CrateMoveable;
+					material.set_texture_crate(sprite);
+					sprite.setColor(sf::Color(255, 255, 255, 100));
+					window.draw(sprite);
 				}
-				*/
 			}
 		}
 	}
 
-	void calc_player_moveable()
+	void transpose()
 	{
-		clear(Tile::PlayerMoveable);
-		fill(player_position_, Tile::PlayerMoveable, Tile::Crate | Tile::Wall);
-	}
-
-	void calc_crate_moveable(const sf::Vector2i& crate_pos)
-	{
-		calc_player_moveable();
-
-		const sf::Vector2i directions[] = {{0, -1}, {0, 1}, {-1, 0}, {1, 0}};
-		for(const auto& direction : directions)
+		std::vector<uint8_t> temp(map_.size());
+		for(int n = 0; n < size().x * size().y; n++)
 		{
-			const auto neighbor_a_pos = crate_pos + direction;
-			const auto neighbor_b_pos = crate_pos - direction;
-			if(!(at(neighbor_b_pos) & Tile::PlayerMoveable))
-				continue;
-			auto pos = neighbor_a_pos;
-			while(!(at(pos) & (Tile::Crate | Tile::Wall)))
-			{
-				at(pos) |= Tile::CrateMoveable;
+			const int i = n / size().y;
+			const int j = n % size().y;
+			temp[n]     = map_[size().x * j + i];
+		}
+		map_ = temp;
 
-				/*
-				at(pos - direction) &= ~Tile::Crate;
-				at(pos) |= Tile::Crate;
+		auto transpose = [](auto p) { return sf::Vector2i(p.y, p.x); };
 
-				show_crate_moveable(pos);
-
-				at(pos) &= ~Tile::Crate;
-				at(pos - direction) |= Tile::Crate;
-				*/
-
-				pos += direction;
-			}
+		size_            = transpose(size());
+		player_position_ = transpose(player_position_);
+		{
+			std::unordered_set<sf::Vector2i> temp;
+			std::transform(crate_positions_.cbegin(), crate_positions_.cend(), std::inserter(temp, temp.begin()),
+			               transpose);
+			crate_positions_ = temp;
+		}
+		{
+			std::unordered_set<sf::Vector2i> temp;
+			std::transform(target_positions_.cbegin(), target_positions_.cend(), std::inserter(temp, temp.begin()),
+			               transpose);
+			target_positions_ = temp;
 		}
 	}
 
 	void rotate()
 	{
-		// TODO
+		transpose();
+		flip();
+
+		rotation_++;
 	}
 
 	void flip()
 	{
 		for(int y = 0; y < size().y; y++)
-		{
-			auto left  = map_.begin() + y * size().x;
-			auto right = map_.begin() + (y + 1) * size().x - 1;
-
-			for(int x = 0; x < size().x / 2; x++)
-			{
-				std::swap_ranges(left, left + 1, right);
-				left++;
-				right--;
-			}
-		}
+			std::reverse(map_.begin() + y * size().x, map_.begin() + (y + 1) * size().x);
 
 		auto flip = [center_x = (size().x - 1) / 2.f](auto pos) {
 			if(pos.x < center_x)
@@ -394,16 +371,17 @@ public:
 		};
 
 		player_position_ = flip(player_position_);
-
-		std::unordered_set<sf::Vector2i> temp;
-		std::transform(crate_positions_.cbegin(), crate_positions_.cend(), std::inserter(temp, temp.begin()),
-		               [flip](auto p) { return flip(p); });
-		crate_positions_ = temp;
-
-		temp.clear();
-		std::transform(target_positions_.cbegin(), target_positions_.cend(), std::inserter(temp, temp.begin()),
-		               [flip](auto p) { return flip(p); });
-		target_positions_ = temp;
+		{
+			std::unordered_set<sf::Vector2i> temp;
+			std::transform(crate_positions_.cbegin(), crate_positions_.cend(), std::inserter(temp, temp.begin()), flip);
+			crate_positions_ = temp;
+		}
+		{
+			std::unordered_set<sf::Vector2i> temp;
+			std::transform(target_positions_.cbegin(), target_positions_.cend(), std::inserter(temp, temp.begin()),
+			               flip);
+			target_positions_ = temp;
+		}
 
 		flipped_ = !flipped_;
 	}
@@ -411,12 +389,13 @@ public:
 	/**
 	 * @brief 寻路.
 	 *
-	 * @param start 起始点.
-	 * @param end   终止点.
+	 * @param start        起始点.
+	 * @param end          终止点
+	 * @param border_tiles 障碍物.
 	 *
 	 * @return std::vector<sf::Vector2i> 最短路径.
 	 */
-	std::vector<sf::Vector2i> find_path(const sf::Vector2i& start, const sf::Vector2i& end)
+	std::vector<sf::Vector2i> find_path(const sf::Vector2i& start, const sf::Vector2i& end, uint8_t border_tiles)
 	{
 		struct Node
 		{
@@ -426,9 +405,6 @@ public:
 			bool operator==(const Node& rhs) const noexcept { return data == rhs.data; }
 			bool operator>(const Node& rhs) const noexcept { return priority > rhs.priority; }
 		};
-
-		// 障碍物
-		const auto border_tiles = Tile::Wall | Tile::Crate;
 
 		auto manhattan_distance = [](auto a, auto b) {
 			return std::abs(static_cast<long>(a.x) - static_cast<long>(b.x)) +
@@ -576,6 +552,44 @@ public:
 			map.push_back('\n');
 		}
 		return map;
+	}
+
+	void clear(uint8_t tiles)
+	{
+		std::transform(map_.cbegin(), map_.cend(), map_.begin(), [tiles](auto t) { return t & ~tiles; });
+	}
+
+	void calc_crate_moveable(const sf::Vector2i& crate_pos)
+	{
+		fill(player_position_, Tile::PlayerMoveable, Tile::Crate | Tile::Wall);
+
+		const sf::Vector2i directions[] = {{0, -1}, {0, 1}, {-1, 0}, {1, 0}};
+		for(const auto& direction : directions)
+		{
+			const auto neighbor_a_pos = crate_pos + direction;
+			const auto neighbor_b_pos = crate_pos - direction;
+			if(!(at(neighbor_b_pos) & Tile::PlayerMoveable))
+				continue;
+			auto pos = neighbor_a_pos;
+			while(!(at(pos) & (Tile::Crate | Tile::Wall)))
+			{
+				at(pos) |= Tile::CrateMoveable;
+
+				/*
+				at(pos - direction) &= ~Tile::Crate;
+				at(pos) |= Tile::Crate;
+
+				show_crate_moveable(pos);
+
+				at(pos) &= ~Tile::Crate;
+				at(pos - direction) |= Tile::Crate;
+				*/
+
+				pos += direction;
+			}
+		}
+
+		clear(Tile::PlayerMoveable);
 	}
 
 	/**
@@ -744,6 +758,8 @@ private:
 
 	void check_deadlock(const sf::Vector2i& position)
 	{
+		// TODO: 利用 calc_crate_moveable 进行检测
+
 		if(!is_crate_deadlocked(position))
 			return;
 		at(position) |= Tile::Deadlocked;
@@ -810,14 +826,9 @@ private:
 
 			const sf::Vector2i directions[] = {{0, 1}, {0, -1}, {1, 0}, {-1, 0}};
 			for(const auto offset : directions)
-				if((at(pos + offset) & (border_tiles | tiles)) == 0)
+				if(!(at(pos + offset) & (border_tiles | tiles)))
 					queue.push(pos + offset);
 		}
-	}
-
-	void clear(uint8_t tiles)
-	{
-		std::transform(map_.cbegin(), map_.cend(), map_.begin(), [tiles](auto t) { return t & ~tiles; });
 	}
 
 	sf::Vector2i                                 size_;
