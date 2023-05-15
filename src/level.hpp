@@ -792,7 +792,7 @@ private:
 	 * @return true  箱子一定锁死.
 	 * @return false 箱子不一定锁死.
 	 */
-	bool is_crate_deadlocked(const sf::Vector2i& position)
+	bool is_crate_deadlocked(const sf::Vector2i& position) const
 	{
 		assert(at(position) & Tile::Crate);
 
@@ -821,13 +821,14 @@ private:
 			}
 		}
 
+		// FIXME
 		// #      #
 		// $$  $# $$   $#
 		//  # #$   #  #$
 		{
 			// clang-format off
 			const sf::Vector2i directions[24] = {
-				{0,  -1}, { 0, 1}, { 1,  1},
+				{0,  -1}, { 1, 1}, { 1,  0},
 				{1,   0}, {-1, 1}, { 0,  1},
 				{-1, -1}, { 0, 1}, {-1,  0},
 				{0,  -1}, {-1, 1}, { 0, -1},
