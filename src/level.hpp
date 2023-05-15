@@ -6,6 +6,7 @@
 #include "SFML/System/Vector2.hpp"
 #include "crc32.hpp"
 #include "material.hpp"
+#include "tile.hpp"
 #include <SFML/Graphics.hpp>
 #include <algorithm>
 #include <cassert>
@@ -32,6 +33,19 @@ struct std::hash<sf::Vector2<T>>
 		return tmp0;
 	}
 };
+
+inline char direction_to_movement(const sf::Vector2i& dir)
+{
+	if(dir.x == 0 && dir.y == -1)
+		return 'u';
+	else if(dir.x == 0 && dir.y == 1)
+		return 'd';
+	else if(dir.x == -1 && dir.y == 0)
+		return 'l';
+	else if(dir.x == 1 && dir.y == 0)
+		return 'r';
+	throw std::invalid_argument("invalid direction");
+}
 
 inline sf::Vector2i movement_to_direction(char move)
 {
@@ -71,19 +85,6 @@ inline char rotate_movement(char move, int rotation, bool flipped)
 	}
 	throw std::invalid_argument("invalid movement");
 }
-
-enum Tile : uint8_t
-{
-	Floor  = 1 << 0,
-	Wall   = 1 << 1,
-	Crate  = 1 << 2,
-	Target = 1 << 3,
-	Player = 1 << 4,
-
-	Deadlocked     = 1 << 5,
-	PlayerMoveable = 1 << 6,
-	CrateMoveable  = 1 << 7,
-};
 
 class Level
 {
@@ -203,10 +204,11 @@ public:
 
 			// 拉箱子
 			const auto crate_pos = player_position_ + last_direction;
-			at(crate_pos) &= ~(Tile::Crate | Tile::Deadlocked);
+			at(crate_pos) &= ~Tile::Crate;
 			at(player_position_) |= Tile::Crate;
 			crate_positions_.erase(crate_pos);
 			crate_positions_.insert(player_position_);
+			refresh_deadlocks();
 		}
 		const auto player_last_pos = player_position_ - last_direction;
 		at(player_position_) &= ~Tile::Player;
@@ -274,34 +276,40 @@ public:
 
 				if(tiles & Tile::Floor)
 				{
-					material.set_texture_floor(sprite);
+					material.set_texture(sprite, Tile::Floor);
 					window.draw(sprite);
 					tiles &= ~Tile::Floor;
 				}
 
-				switch(tiles & ~(Tile::Deadlocked | Tile::PlayerMoveable | Tile::CrateMoveable))
+				switch(tiles & ~(Tile::PlayerMoveable | Tile::CrateMoveable))
 				{
 				case Tile::Wall:
-					material.set_texture_wall(sprite);
+					material.set_texture(sprite, Tile::Wall);
 					break;
 
 				case Tile::Target:
-					material.set_texture_target(sprite);
+					material.set_texture(sprite, Tile::Target);
 					break;
 
 				case Tile::Crate:
-					material.set_texture_crate(sprite);
+					material.set_texture(sprite, Tile::Crate);
 					break;
 
 				case Tile::Target | Tile::Crate:
+				case Tile::Target | Tile::Crate | Tile::Deadlocked:
 					sprite.setColor(sf::Color(180, 180, 180));
-					material.set_texture_crate(sprite);
+					material.set_texture(sprite, Tile::Crate);
 					break;
 
 				case Tile::Target | Tile::Player:
-					material.set_texture_target(sprite);
+					material.set_texture(sprite, Tile::Target);
 					window.draw(sprite);
 					material.set_texture_player(sprite, player_dir);
+					break;
+
+				case Tile::Crate | Tile::Deadlocked:
+					sprite.setColor(sf::Color(255, 0, 0));
+					material.set_texture(sprite, Tile::Crate);
 					break;
 
 				case Tile::Player:
@@ -312,7 +320,7 @@ public:
 
 				if(tiles & Tile::CrateMoveable)
 				{
-					material.set_texture_crate(sprite);
+					material.set_texture(sprite, Tile::Crate);
 					sprite.setColor(sf::Color(255, 255, 255, 100));
 					window.draw(sprite);
 				}
@@ -554,33 +562,53 @@ public:
 		return map;
 	}
 
+	void fill(const sf::Vector2i& position, uint8_t tiles, uint8_t border_tiles)
+	{
+		std::queue<sf::Vector2i> queue;
+		queue.push(position);
+
+		while(!queue.empty())
+		{
+			const auto pos = queue.front();
+			queue.pop();
+			at(pos) |= tiles;
+
+			const sf::Vector2i directions[] = {{0, 1}, {0, -1}, {1, 0}, {-1, 0}};
+			for(const auto offset : directions)
+				if(!(at(pos + offset) & (border_tiles | tiles)))
+					queue.push(pos + offset);
+		}
+	}
+
 	void clear(uint8_t tiles)
 	{
 		std::transform(map_.cbegin(), map_.cend(), map_.begin(), [tiles](auto t) { return t & ~tiles; });
 	}
 
-	void calc_crate_moveable(const sf::Vector2i& crate_pos)
+	void calc_one_step_crate_moveable(const sf::Vector2i& crate_pos)
 	{
 		fill(player_position_, Tile::PlayerMoveable, Tile::Crate | Tile::Wall);
 
 		const sf::Vector2i directions[] = {{0, -1}, {0, 1}, {-1, 0}, {1, 0}};
 		for(const auto& direction : directions)
 		{
-			const auto neighbor_a_pos = crate_pos + direction;
-			const auto neighbor_b_pos = crate_pos - direction;
-			if(!(at(neighbor_b_pos) & Tile::PlayerMoveable))
+			const auto neighbor_a = crate_pos + direction;
+			const auto neighbor_b = crate_pos - direction;
+			if(!(at(neighbor_b) & Tile::PlayerMoveable))
 				continue;
-			auto pos = neighbor_a_pos;
-			while(!(at(pos) & (Tile::Crate | Tile::Wall)))
+			auto pos = neighbor_a;
+			while(!(at(pos) & (Tile::Crate | Tile::Wall | Tile::CrateMoveable)))
 			{
 				at(pos) |= Tile::CrateMoveable;
 
 				/*
 				at(pos - direction) &= ~Tile::Crate;
 				at(pos) |= Tile::Crate;
+				player_position_ = pos - 2 * direction;
 
-				show_crate_moveable(pos);
+				calc_crate_moveable(pos);
 
+				player_position_ = pos - direction;
 				at(pos) &= ~Tile::Crate;
 				at(pos - direction) |= Tile::Crate;
 				*/
@@ -756,21 +784,6 @@ private:
 		}
 	}
 
-	void check_deadlock(const sf::Vector2i& position)
-	{
-		// TODO: 利用 calc_crate_moveable 进行检测
-
-		if(!is_crate_deadlocked(position))
-			return;
-		at(position) |= Tile::Deadlocked;
-		if(!(at(position) & Tile::Target))
-			puts("Crate was deadlocked!");
-		const sf::Vector2i directions[4] = {{0, -1}, {1, 0}, {0, 1}, {-1, 0}};
-		for(const auto direction : directions)
-			if(at(position + direction) & Tile::Crate && !(at(position + direction) & Tile::Deadlocked))
-				check_deadlock(position + direction);
-	}
-
 	/**
 	 * @brief 检查箱子死否一定锁死.
 	 *
@@ -782,53 +795,86 @@ private:
 	bool is_crate_deadlocked(const sf::Vector2i& position)
 	{
 		assert(at(position) & Tile::Crate);
+
+		// #$
+		//  #
 		{
 			const sf::Vector2i directions[4] = {{0, -1}, {1, 0}, {0, 1}, {-1, 0}};
 			for(size_t i = 0; i < 4; i++)
-				if(at(position + directions[i]) & (Tile::Wall | Tile::Deadlocked) &&
-				   at(position + directions[(i + 1) % 4]) & (Tile::Wall | Tile::Deadlocked))
+				if((at(position + directions[i]) & Tile::Unmovable) &&
+				   (at(position + directions[(i + 1) % 4]) & Tile::Unmovable))
 					return true;
 		}
+
+		// $$
+		// ##
 		{
 			const sf::Vector2i directions[8] = {{0, -1}, {1, -1}, {1, 0}, {1, 1}, {0, 1}, {-1, 1}, {-1, 0}, {-1, -1}};
 			for(size_t i = 0; i < 8; i += 2)
 			{
 				if((at(position + directions[i]) & Tile::Crate) &&
-				   (at(position + directions[i + 1]) & (Tile::Wall | Tile::Deadlocked)) &&
-				   (at(position + directions[(i + 2) % 8]) & (Tile::Wall | Tile::Deadlocked)))
+				   (at(position + directions[i + 1]) & at(position + directions[(i + 2) % 8]) & Tile::Unmovable))
 					return true;
-				if((at(position + directions[i]) & (Tile::Wall | Tile::Deadlocked)) &&
-				   (at(position + directions[i + 1]) & (Tile::Wall | Tile::Deadlocked)) &&
+				if((at(position + directions[i]) & at(position + directions[i + 1]) & Tile::Unmovable) &&
 				   (at(position + directions[(i + 2) % 8]) & Tile::Crate))
 					return true;
 			}
 		}
+
+		// #      #
+		// $$  $# $$   $#
+		//  # #$   #  #$
+		{
+			// clang-format off
+			const sf::Vector2i directions[24] = {
+				{0,  -1}, { 0, 1}, { 1,  1},
+				{1,   0}, {-1, 1}, { 0,  1},
+				{-1, -1}, { 0, 1}, {-1,  0},
+				{0,  -1}, {-1, 1}, { 0, -1},
+
+				{-1, -1}, { 0, -1}, {-1,  0},
+				{ 1, -1}, {-1,  0}, { 0, -1},
+				{ 0, -1}, { 1,  1}, { 1,  0},
+				{ 1,  0}, {-1,  1}, { 0,  1}
+			};
+			// clang-format on
+			for(size_t i = 0; i < 24; i += 3)
+			{
+				if(at(position + directions[i]) & at(position + directions[i + 1]) & Tile::Unmovable &&
+				   at(position + directions[i + 2]) & Tile::Crate)
+					return true;
+			}
+		}
+
+		// $X
+		// XX
 		{
 			const sf::Vector2i directions[8] = {{0, -1}, {1, -1}, {1, 0}, {1, 1}, {0, 1}, {-1, 1}, {-1, 0}, {-1, -1}};
 			for(size_t i = 0; i < 8; i += 2)
 				if(at(position + directions[i]) & at(position + directions[i + 1]) &
-				   at(position + directions[(i + 2) % 8]) & (Tile::Wall | Tile::Deadlocked | Tile::Crate))
+				   at(position + directions[(i + 2) % 8]) & (Tile::Unmovable | Tile::Crate))
 					return true;
 		}
+
 		return false;
 	}
 
-	void fill(const sf::Vector2i& position, uint8_t tiles, uint8_t border_tiles)
+	void check_deadlock(const sf::Vector2i& position)
 	{
-		std::queue<sf::Vector2i> queue;
-		queue.push(position);
+		if(!is_crate_deadlocked(position))
+			return;
+		at(position) |= Tile::Deadlocked;
+		const sf::Vector2i directions[4] = {{0, -1}, {1, 0}, {0, 1}, {-1, 0}};
+		for(const auto direction : directions)
+			if(at(position + direction) & Tile::Crate && !(at(position + direction) & Tile::Deadlocked))
+				check_deadlock(position + direction);
+	}
 
-		while(!queue.empty())
-		{
-			const auto pos = queue.front();
-			queue.pop();
-			at(pos) |= tiles;
-
-			const sf::Vector2i directions[] = {{0, 1}, {0, -1}, {1, 0}, {-1, 0}};
-			for(const auto offset : directions)
-				if(!(at(pos + offset) & (border_tiles | tiles)))
-					queue.push(pos + offset);
-		}
+	void refresh_deadlocks()
+	{
+		clear(Tile::Deadlocked);
+		for(const auto& crate_pos : crate_positions_)
+			check_deadlock(crate_pos);
 	}
 
 	sf::Vector2i                                 size_;

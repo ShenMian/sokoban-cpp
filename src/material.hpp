@@ -3,8 +3,10 @@
 
 #pragma once
 
+#include "tile.hpp"
 #include <SFML/Graphics.hpp>
 #include <filesystem>
+#include <unordered_map>
 
 struct Material
 {
@@ -16,28 +18,15 @@ struct Material
 		texture.setSmooth(true);
 	}
 
-	void set_texture_floor(sf::Sprite& sprite) const
+	void set_texture(sf::Sprite& sprite, Tile tile) const
 	{
-		sprite.setTexture(texture);
-		sprite.setTextureRect({0 * tile_size, 0 * tile_size, tile_size, tile_size});
-	}
+		const std::unordered_map<Tile, sf::Vector2i> offsets = {
+		    {Tile::Floor, {0, 0}}, {Tile::Wall, {1, 0}}, {Tile::Crate, {2, 0}}, {Tile::Target, {3, 0}}};
 
-	void set_texture_wall(sf::Sprite& sprite) const
-	{
-		sprite.setTexture(texture);
-		sprite.setTextureRect({1 * tile_size, 0 * tile_size, tile_size, tile_size});
-	}
+		const auto& offset = offsets.at(tile);
 
-	void set_texture_crate(sf::Sprite& sprite) const
-	{
 		sprite.setTexture(texture);
-		sprite.setTextureRect({2 * tile_size, 0 * tile_size, tile_size, tile_size});
-	}
-
-	void set_texture_target(sf::Sprite& sprite) const
-	{
-		sprite.setTexture(texture);
-		sprite.setTextureRect({3 * tile_size, 0 * tile_size, tile_size, tile_size});
+		sprite.setTextureRect({offset.x * tile_size, offset.y * tile_size, tile_size, tile_size});
 	}
 
 	void set_texture_player(sf::Sprite& sprite, const sf::Vector2i& direction) const

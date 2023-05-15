@@ -3,9 +3,11 @@
 
 #pragma once
 
+#include "level.hpp"
 #include <SQLiteCpp/Database.h>
 #include <filesystem>
 #include <optional>
+#include <cassert>
 
 class Database
 {

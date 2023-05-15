@@ -1,9 +1,9 @@
 // Copyright 2023 ShenMian
 // License(Apache-2.0)
 
+#include "database.hpp"
 #include "level.hpp"
 #include "material.hpp"
-#include "database.hpp"
 #include <SFML/Audio.hpp>
 #include <SFML/Graphics.hpp>
 #include <SQLiteCpp/Database.h>
@@ -38,7 +38,7 @@ public:
 			}
 		}
 
-		if (argc == 2)
+		if(argc == 2)
 			database_.upsert_level_history(std::atoi(argv[1]));
 
 		level_ = database_.get_level_by_id(database_.get_latest_level_id().value_or(1)).value();
@@ -47,8 +47,6 @@ public:
 			window_.setTitle("Sokoban - " + level_.metadata().at("title"));
 		database_.upsert_level_history(level_);
 		level_.play(database_.get_level_history_movements(level_));
-
-		// level_.transpose();
 
 		create_window();
 
@@ -76,7 +74,7 @@ public:
 
 				// 加载下一个没有答案的关卡
 				auto id = database_.get_level_id(level_).value();
-				while (true)
+				while(true)
 				{
 					auto level = database_.get_level_by_id(++id);
 					if(level.has_value() && !level.value().metadata().contains("answer"))
@@ -159,14 +157,7 @@ private:
 		mouse_select_clock.restart();
 		if(selected_crate_ != sf::Vector2i(-1, -1))
 		{
-			if(level_.at(mouse_pos) & Tile::Crate && selected_crate_ != mouse_pos)
-			{
-				// 切换选中的箱子
-				level_.clear(Tile::CrateMoveable);
-				level_.calc_crate_moveable(mouse_pos);
-				selected_crate_ = mouse_pos;
-			}
-			else if(level_.at(mouse_pos) & Tile::CrateMoveable)
+			if(level_.at(mouse_pos) & Tile::CrateMoveable)
 			{
 				level_.clear(Tile::CrateMoveable);
 
@@ -179,6 +170,13 @@ private:
 				move_to(start, Tile::Wall | Tile::Crate);
 				move_to(end, Tile::Wall);
 			}
+			else if(level_.at(mouse_pos) & Tile::Crate && selected_crate_ != mouse_pos)
+			{
+				// 切换选中的箱子
+				level_.clear(Tile::CrateMoveable);
+				level_.calc_one_step_crate_moveable(mouse_pos);
+				selected_crate_ = mouse_pos;
+			}
 			else
 			{
 				// 取消选中箱子
@@ -190,7 +188,7 @@ private:
 		else if(level_.at(mouse_pos) & Tile::Crate)
 		{
 			// 选中鼠标处的箱子
-			level_.calc_crate_moveable(mouse_pos);
+			level_.calc_one_step_crate_moveable(mouse_pos);
 			selected_crate_ = mouse_pos;
 			return;
 		}
@@ -309,5 +307,5 @@ private:
 
 	Database database_;
 
-	// std::vector<sf::Keyboard::Key, std::chrono::duration<std::chrono::milliseconds>> key_pressed;
+	// std::vector<sf::Keyboard::Key, sf::Clock>> key_pressed_;
 };
