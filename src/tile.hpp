@@ -11,9 +11,9 @@ enum Tile : uint8_t
 	Target = 1 << 3,
 	Player = 1 << 4,
 
-	Deadlocked     = 1 << 5,
-	PlayerMoveable = 1 << 6,
-	CrateMoveable  = 1 << 7,
+	Deadlocked    = 1 << 5,
+	PlayerMovable = 1 << 6,
+	CrateMovable  = 1 << 7,
 
 	Unmovable = Wall | Deadlocked,
 };

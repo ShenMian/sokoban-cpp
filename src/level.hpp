@@ -200,7 +200,7 @@ public:
 
 		if(std::isupper(movements_.back()))
 		{
-			clear(Tile::PlayerMoveable | Tile::CrateMoveable);
+			clear(Tile::PlayerMovable | Tile::CrateMovable);
 
 			// 拉箱子
 			const auto crate_pos = player_position_ + last_direction;
@@ -223,7 +223,7 @@ public:
 	 */
 	void reset()
 	{
-		clear(Tile::Deadlocked | Tile::PlayerMoveable | Tile::CrateMoveable);
+		clear(Tile::Deadlocked | Tile::PlayerMovable | Tile::CrateMovable);
 		while(!movements_.empty())
 			undo();
 	}
@@ -281,7 +281,7 @@ public:
 					tiles &= ~Tile::Floor;
 				}
 
-				switch(tiles & ~(Tile::PlayerMoveable | Tile::CrateMoveable))
+				switch(tiles & ~(Tile::PlayerMovable | Tile::CrateMovable))
 				{
 				case Tile::Wall:
 					material.set_texture(sprite, Tile::Wall);
@@ -318,7 +318,7 @@ public:
 				}
 				window.draw(sprite);
 
-				if(tiles & Tile::CrateMoveable)
+				if(tiles & Tile::CrateMovable)
 				{
 					material.set_texture(sprite, Tile::Crate);
 					sprite.setColor(sf::Color(255, 255, 255, 100));
@@ -585,39 +585,48 @@ public:
 		std::transform(map_.cbegin(), map_.cend(), map_.begin(), [tiles](auto t) { return t & ~tiles; });
 	}
 
-	void calc_one_step_crate_moveable(const sf::Vector2i& crate_pos)
+	auto calc_crate_movable(const sf::Vector2i& crate_pos)
 	{
-		fill(player_position_, Tile::PlayerMoveable, Tile::Crate | Tile::Wall);
+		// FIXME: 不能走回头路, 有回头路会死循环
+		std::unordered_map<sf::Vector2i, sf::Vector2i> came_from;
+		calc_crate_movable(crate_pos, player_position_, came_from);
+		return came_from;
+	}
+
+	void calc_crate_movable(const sf::Vector2i& crate_pos, const sf::Vector2i& player_pos,
+	                        std::unordered_map<sf::Vector2i, sf::Vector2i>& came_from)
+	{
+		clear(Tile::PlayerMovable);
+		fill(player_pos, Tile::PlayerMovable, Tile::Crate | Tile::Wall);
 
 		const sf::Vector2i directions[] = {{0, -1}, {0, 1}, {-1, 0}, {1, 0}};
 		for(const auto& direction : directions)
 		{
-			const auto neighbor_a = crate_pos + direction;
-			const auto neighbor_b = crate_pos - direction;
-			if(!(at(neighbor_b) & Tile::PlayerMoveable))
+			if(!(at(crate_pos - direction) & Tile::PlayerMovable))
 				continue;
-			auto pos = neighbor_a;
-			while(!(at(pos) & (Tile::Crate | Tile::Wall | Tile::CrateMoveable)))
-			{
-				at(pos) |= Tile::CrateMoveable;
 
-				/*
+			// FIXME: 因为不允许走回头路, 所以不能经过玩家已经在的位置
+			if(crate_pos + direction == player_pos)
+				continue;
+
+			for(auto pos = crate_pos + direction; !(at(pos) & (Tile::Unmovable | Tile::Crate | Tile::CrateMovable));
+			    pos += direction)
+			{
+				at(pos) |= Tile::CrateMovable;
+				came_from[pos] = crate_pos;
+
 				at(pos - direction) &= ~Tile::Crate;
 				at(pos) |= Tile::Crate;
-				player_position_ = pos - 2 * direction;
 
-				calc_crate_moveable(pos);
+				calc_crate_movable(pos, pos - direction, came_from);
 
-				player_position_ = pos - direction;
 				at(pos) &= ~Tile::Crate;
 				at(pos - direction) |= Tile::Crate;
-				*/
 
-				pos += direction;
+				clear(Tile::PlayerMovable);
+				fill(player_pos, Tile::PlayerMovable, Tile::Crate | Tile::Wall);
 			}
 		}
-
-		clear(Tile::PlayerMoveable);
 	}
 
 	/**

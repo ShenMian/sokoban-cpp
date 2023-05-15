@@ -43,6 +43,7 @@ public:
 
 		level_ = database_.get_level_by_id(database_.get_latest_level_id().value_or(1)).value();
 
+		print_info();
 		if(level_.metadata().contains("title"))
 			window_.setTitle("Sokoban - " + level_.metadata().at("title"));
 		database_.upsert_level_history(level_);
@@ -83,6 +84,7 @@ public:
 						break;
 					}
 				}
+				print_info();
 
 				database_.upsert_level_history(level_);
 				level_.play(database_.get_level_history_movements(level_));
@@ -157,9 +159,31 @@ private:
 		mouse_select_clock.restart();
 		if(selected_crate_ != sf::Vector2i(-1, -1))
 		{
-			if(level_.at(mouse_pos) & Tile::CrateMoveable)
+			if(level_.at(mouse_pos) & Tile::CrateMovable && selected_crate_ != mouse_pos)
 			{
-				level_.clear(Tile::CrateMoveable);
+				level_.clear(Tile::CrateMovable);
+
+				std::vector<sf::Vector2i> path;
+				for(auto pos = mouse_pos; came_from.contains(pos);)
+				{
+					path.push_back(pos);
+					pos = came_from[pos];
+				}
+				std::reverse(path.begin(), path.end());
+
+				sf::Vector2i crate_pos = selected_crate_;
+				for(auto p : path)
+				{
+					sf::Vector2i push_dir;
+					push_dir.x       = std::clamp(p.x - crate_pos.x, -1, 1);
+					push_dir.y       = std::clamp(p.y - crate_pos.y, -1, 1);
+					const auto start = crate_pos - push_dir;
+					const auto end   = p - push_dir;
+					move_to(start, Tile::Wall | Tile::Crate);
+					move_to(end, Tile::Wall);
+					crate_pos = p;
+				}
+				return;
 
 				// 推动选中箱子到鼠标位置
 				sf::Vector2i push_dir;
@@ -173,14 +197,14 @@ private:
 			else if(level_.at(mouse_pos) & Tile::Crate && selected_crate_ != mouse_pos)
 			{
 				// 切换选中的箱子
-				level_.clear(Tile::CrateMoveable);
-				level_.calc_one_step_crate_moveable(mouse_pos);
+				level_.clear(Tile::CrateMovable);
+				came_from = level_.calc_crate_movable(mouse_pos);
 				selected_crate_ = mouse_pos;
 			}
 			else
 			{
 				// 取消选中箱子
-				level_.clear(Tile::CrateMoveable);
+				level_.clear(Tile::CrateMovable);
 				selected_crate_ = {-1, -1};
 			}
 			return;
@@ -188,7 +212,7 @@ private:
 		else if(level_.at(mouse_pos) & Tile::Crate)
 		{
 			// 选中鼠标处的箱子
-			level_.calc_one_step_crate_moveable(mouse_pos);
+			came_from       = level_.calc_crate_movable(mouse_pos);
 			selected_crate_ = mouse_pos;
 			return;
 		}
@@ -254,11 +278,13 @@ private:
 		if(sf::Keyboard::isKeyPressed(sf::Keyboard::BackSpace))
 		{
 			level_.undo();
+			selected_crate_ = {-1, -1};
 			keyboard_input_clock_.restart();
 		}
 		if(sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
 		{
 			level_.reset();
+			selected_crate_ = {-1, -1};
 			keyboard_input_clock_.restart();
 		}
 		if(sf::Keyboard::isKeyPressed(sf::Keyboard::P))
@@ -280,11 +306,17 @@ private:
 		}
 	}
 
+	void print_info()
+	{
+		if(level_.metadata().contains("title"))
+			std::cout << "Title: " << level_.metadata().at("title") << '\n';
+		if(level_.metadata().contains("author"))
+			std::cout << "Author: " << level_.metadata().at("author") << '\n';
+	}
+
 	void print_result()
 	{
 		const auto movements = level_.movements();
-		if(level_.metadata().contains("title"))
-			std::cout << "Title: " << level_.metadata().at("title") << '\n';
 		std::cout << "Moves: " << movements.size() << '\n';
 		std::cout << "Pushs: "
 		          << std::count_if(movements.begin(), movements.end(), [](auto c) { return std::isupper(c); }) << '\n';
@@ -302,8 +334,10 @@ private:
 	sf::Music       background_music_;
 
 	sf::Clock    keyboard_input_clock_, mouse_select_clock;
-	sf::Vector2i selected_crate_ = {-1, -1};
 	std::jthread input_thread_;
+
+	sf::Vector2i                                   selected_crate_ = {-1, -1};
+	std::unordered_map<sf::Vector2i, sf::Vector2i> came_from;
 
 	Database database_;
 
