@@ -17,10 +17,10 @@ A simple sokoban, using [SFML] framework.
 
 ## Assets
 
-- Image from [The Storage Manager by PKGames].
+- Image from [Kenney].
 - Sound effect/music from [sinneschlösen]/[Pixabay].
 
 [SFML]: https://github.com/SFML/SFML
-[The Storage Manager by PKGames]: https://pkgames.itch.io/thestoragemanager
+[Kenney]: https://www.kenney.nl/assets/sokoban
 [sinneschlösen]: https://pixabay.com/users/sinneschlösen-1888724/?utm_source=link-attribution&amp;utm_medium=referral&amp;utm_campaign=music&amp;utm_content=117362
 [Pixabay]: https://pixabay.com/sound-effects/?utm_source=link-attribution&amp;utm_medium=referral&amp;utm_campaign=music&amp;utm_content=6297
