@@ -3,7 +3,6 @@
 
 #pragma once
 
-#include "SFML/System/Vector2.hpp"
 #include "crc32.hpp"
 #include "material.hpp"
 #include "tile.hpp"
@@ -36,13 +35,13 @@ struct std::hash<sf::Vector2<T>>
 
 inline char direction_to_movement(const sf::Vector2i& dir)
 {
-	if(dir.x == 0 && dir.y == -1)
+	if(dir == sf::Vector2i(0, -1))
 		return 'u';
-	else if(dir.x == 0 && dir.y == 1)
+	else if(dir == sf::Vector2i(0, 1))
 		return 'd';
-	else if(dir.x == -1 && dir.y == 0)
+	else if(dir == sf::Vector2i(-1, 0))
 		return 'l';
-	else if(dir.x == 1 && dir.y == 0)
+	else if(dir == sf::Vector2i(1, 0))
 		return 'r';
 	throw std::invalid_argument("invalid direction");
 }
@@ -66,24 +65,27 @@ inline sf::Vector2i movement_to_direction(char move)
 	throw std::invalid_argument("invalid movement");
 }
 
-inline char rotate_movement(char move, int rotation, bool flipped)
+inline sf::Vector2i rotate_direction(sf::Vector2i dir, int rotation)
 {
-	const char moves[] = {'u', 'r', 'd', 'l'};
-	switch(std::tolower(move))
+	if (rotation > 0)
 	{
-	case 'u':
-		return moves[(0 + rotation) % 4];
-
-	case 'r':
-		return moves[(1 + rotation + (flipped ? 2 : 0)) % 4];
-
-	case 'd':
-		return moves[(2 + rotation) % 4];
-
-	case 'l':
-		return moves[(3 + rotation + (flipped ? 2 : 0)) % 4];
+		for(int i = 0; i < rotation; i++)
+			dir = {-dir.y, dir.x};
 	}
-	throw std::invalid_argument("invalid movement");
+	else
+	{
+		for(int i = 0; i < std::abs(rotation); i++)
+			dir = {dir.y, -dir.x};
+	}
+	return dir;
+}
+
+inline char rotate_movement(char move, int rotation)
+{
+	if(std::islower(move))
+		return direction_to_movement(rotate_direction(movement_to_direction(move), rotation));
+	else
+		return std::toupper(direction_to_movement(rotate_direction(movement_to_direction(move), rotation)));
 }
 
 class Level
@@ -174,7 +176,7 @@ public:
 				at(player_next_pos) |= Tile::Player;
 				player_position_ = player_next_pos;
 
-				movements_ += std::toupper(movement);
+				movements_ += rotate_movement(std::toupper(movement), -rotation_);
 			}
 			else
 			{
@@ -182,7 +184,7 @@ public:
 				at(player_next_pos) |= Tile::Player;
 				player_position_ = player_next_pos;
 
-				movements_ += std::tolower(movement);
+				movements_ += rotate_movement(std::tolower(movement), -rotation_);
 			}
 			std::this_thread::sleep_for(interval);
 		}
@@ -196,12 +198,9 @@ public:
 		if(movements_.empty())
 			return;
 
-		const auto last_direction = movement_to_direction(movements_.back());
-
+		const auto last_direction = movement_to_direction(get_last_rotated_movement());
 		if(std::isupper(movements_.back()))
 		{
-			clear(Tile::PlayerMovable | Tile::CrateMovable);
-
 			// 拉箱子
 			const auto crate_pos = player_position_ + last_direction;
 			at(crate_pos) &= ~Tile::Crate;
@@ -226,6 +225,8 @@ public:
 		clear(Tile::Deadlocked | Tile::PlayerMovable | Tile::CrateMovable);
 		while(!movements_.empty())
 			undo();
+		while(rotation_)
+			rotate();
 	}
 
 	/**
@@ -248,7 +249,7 @@ public:
 		if(movements_.empty())
 			player_dir = {0, 1};
 		else
-			player_dir = movement_to_direction(movements_.back());
+			player_dir = movement_to_direction(rotate_movement(movements_.back(), rotation_));
 
 		// TODO: 需要重构, 可读性较差, 非必要的重复计算
 		const auto window_size   = sf::Vector2f(window.getSize());
@@ -362,7 +363,7 @@ public:
 		transpose();
 		flip();
 
-		rotation_++;
+		rotation_ = (rotation_ + 1) % 4;
 	}
 
 	void flip()
@@ -391,19 +392,19 @@ public:
 			target_positions_ = temp;
 		}
 
-		flipped_ = !flipped_;
+		// flipped_ = !flipped_;
 	}
 
 	/**
 	 * @brief 寻找最短路径.
 	 *
-	 * @param start        起始点.
-	 * @param end          终止点
-	 * @param border_tiles 障碍物.
+	 * @param start  起始点.
+	 * @param end    终止点.
+	 * @param border 障碍物.
 	 *
 	 * @return std::vector<sf::Vector2i> 最短路径.
 	 */
-	std::vector<sf::Vector2i> find_path(const sf::Vector2i& start, const sf::Vector2i& end, uint8_t border_tiles)
+	std::vector<sf::Vector2i> find_path(const sf::Vector2i& start, const sf::Vector2i& end, uint8_t border)
 	{
 		struct Node
 		{
@@ -417,6 +418,11 @@ public:
 		auto manhattan_distance = [](auto a, auto b) {
 			return std::abs(static_cast<long>(a.x) - static_cast<long>(b.x)) +
 			       std::abs(static_cast<long>(a.y) - static_cast<long>(b.y));
+		};
+
+		auto euclidean_distance = [](auto a, auto b) {
+			return std::sqrt(std::pow(static_cast<long>(a.x) - static_cast<long>(b.x), 2) +
+			                 std::pow(static_cast<long>(a.y) - static_cast<long>(b.y), 2));
 		};
 
 		std::priority_queue<Node, std::vector<Node>, std::greater<Node>> queue;
@@ -436,7 +442,7 @@ public:
 			for(const auto direction : directions)
 			{
 				const auto neighbor = current + direction;
-				if(at(neighbor) & border_tiles)
+				if(at(neighbor) & border)
 					continue;
 
 				const auto neighbor_cost = cost[current] + manhattan_distance(neighbor, end);
@@ -562,7 +568,7 @@ public:
 		return map;
 	}
 
-	void fill(const sf::Vector2i& position, uint8_t tiles, uint8_t border_tiles)
+	void fill(const sf::Vector2i& position, uint8_t value, uint8_t border)
 	{
 		std::vector<sf::Vector2i> vector;
 		std::vector<bool>         visited(map_.size(), false);
@@ -573,13 +579,13 @@ public:
 		{
 			const auto pos = vector.back();
 			vector.pop_back();
-			at(pos) |= tiles;
+			at(pos) |= value;
 
 			const sf::Vector2i directions[] = {{0, 1}, {0, -1}, {1, 0}, {-1, 0}};
 			for(const auto offset : directions)
 			{
 				const auto new_pos = pos + offset;
-				if(!(at(new_pos) & (border_tiles | tiles)) && !visited[new_pos.y * size().x + new_pos.x])
+				if(!(at(new_pos) & (border | value)) && !visited[new_pos.y * size().x + new_pos.x])
 				{
 					vector.emplace_back(new_pos);
 					visited[new_pos.y * size().x + new_pos.x] = true;
@@ -803,6 +809,8 @@ private:
 		}
 	}
 
+	char get_last_rotated_movement() const { return rotate_movement(movements_.back(), rotation_); }
+
 	/**
 	 * @brief 检查箱子死否一定锁死.
 	 *
@@ -879,6 +887,11 @@ private:
 		return false;
 	}
 
+	/**
+	 * @brief 检查箱子死否锁死, 若死锁标记死锁.
+	 *
+	 * @param position 箱子位置.
+	 */
 	void check_deadlock(const sf::Vector2i& position)
 	{
 		if(!is_crate_deadlocked(position))
@@ -890,6 +903,9 @@ private:
 				check_deadlock(position + direction);
 	}
 
+	/**
+	 * @brief 重新检查所有箱子死否锁死, 若死锁标记死锁.
+	 */
 	void refresh_deadlocks()
 	{
 		clear(Tile::Deadlocked);
