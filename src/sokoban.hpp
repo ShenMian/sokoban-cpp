@@ -24,6 +24,22 @@ public:
 		database_.import_levels_from_file(std::filesystem::path(argv[0]).parent_path() / "level" / "default.xsb");
 		database_.import_levels_from_file(std::filesystem::path(argv[0]).parent_path() / "level" / "box_world.xsb");
 
+		std::cout << R"(
+   ____     __        __           
+  / __/__  / /_____  / /  ___ ____ 
+ _\ \/ _ \/  '_/ _ \/ _ \/ _ `/ _ \
+/___/\___/_/\_\\___/_.__/\_,_/_//_/
+
+)";
+		/*
+		std::cout << R"(
+		      1. Open the lastest level
+		      2. Import from file
+		      3. Open from clipboard
+
+		)";
+		*/
+
 		const std::string clipboard = sf::Clipboard::getString();
 		if(!clipboard.empty() && (clipboard.front() == ';' || clipboard.front() == '-' || clipboard.front() == '#'))
 		{
@@ -41,7 +57,9 @@ public:
 		if(argc == 2)
 			database_.upsert_level_history(std::atoi(argv[1]));
 
+		sf::Clock clock;
 		level_ = database_.get_level_by_id(database_.get_latest_level_id().value_or(1)).value();
+		std::cout << "Load level: " << clock.getElapsedTime().asMicroseconds() << "us\n"; // TODO: performance test
 
 		print_info();
 		if(level_.metadata().contains("title"))
@@ -161,6 +179,9 @@ private:
 		{
 			if(level_.at(mouse_pos) & Tile::CrateMovable && selected_crate_ != mouse_pos)
 			{
+				sf::Clock clock;
+
+				// 推动选中箱子到鼠标位置
 				level_.clear(Tile::CrateMovable);
 
 				std::vector<sf::Vector2i> path;
@@ -171,34 +192,27 @@ private:
 				}
 				std::reverse(path.begin(), path.end());
 
-				sf::Vector2i crate_pos = selected_crate_;
-				for(auto p : path)
+				auto crate_pos = selected_crate_;
+				for(const auto& pos : path)
 				{
 					sf::Vector2i push_dir;
-					push_dir.x       = std::clamp(p.x - crate_pos.x, -1, 1);
-					push_dir.y       = std::clamp(p.y - crate_pos.y, -1, 1);
+					push_dir.x       = std::clamp(pos.x - crate_pos.x, -1, 1);
+					push_dir.y       = std::clamp(pos.y - crate_pos.y, -1, 1);
 					const auto start = crate_pos - push_dir;
-					const auto end   = p - push_dir;
+					const auto end   = pos - push_dir;
 					move_to(start, Tile::Wall | Tile::Crate);
 					move_to(end, Tile::Wall);
-					crate_pos = p;
+					crate_pos = pos;
 				}
-				return;
 
-				// 推动选中箱子到鼠标位置
-				sf::Vector2i push_dir;
-				push_dir.x       = std::clamp(mouse_pos.x - selected_crate_.x, -1, 1);
-				push_dir.y       = std::clamp(mouse_pos.y - selected_crate_.y, -1, 1);
-				const auto start = selected_crate_ - push_dir;
-				const auto end   = mouse_pos - push_dir;
-				move_to(start, Tile::Wall | Tile::Crate);
-				move_to(end, Tile::Wall);
+				std::cout << "Move crate: " << clock.getElapsedTime().asMicroseconds()
+				          << "us\n"; // TODO: performance test
 			}
 			else if(level_.at(mouse_pos) & Tile::Crate && selected_crate_ != mouse_pos)
 			{
 				// 切换选中的箱子
 				level_.clear(Tile::CrateMovable);
-				came_from = level_.calc_crate_movable(mouse_pos);
+				came_from       = level_.calc_crate_movable(mouse_pos);
 				selected_crate_ = mouse_pos;
 			}
 			else
@@ -212,7 +226,10 @@ private:
 		else if(level_.at(mouse_pos) & Tile::Crate)
 		{
 			// 选中鼠标处的箱子
-			came_from       = level_.calc_crate_movable(mouse_pos);
+			sf::Clock clock;
+			came_from = level_.calc_crate_movable(mouse_pos);
+			std::cout << "Calc crate movable: " << clock.getElapsedTime().asMicroseconds()
+			          << "us\n"; // TODO: performance test
 			selected_crate_ = mouse_pos;
 			return;
 		}
@@ -244,7 +261,8 @@ private:
 				movements += 'r';
 			current_pos += direction;
 		}
-		level_.play(movements, std::chrono::milliseconds(100));
+		// level_.play(movements, std::chrono::milliseconds(100));
+		level_.play(movements);
 	}
 
 	void handle_keyboard_input()
