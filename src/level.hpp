@@ -395,7 +395,7 @@ public:
 	}
 
 	/**
-	 * @brief 寻路.
+	 * @brief 寻找最短路径.
 	 *
 	 * @param start        起始点.
 	 * @param end          终止点
@@ -564,19 +564,27 @@ public:
 
 	void fill(const sf::Vector2i& position, uint8_t tiles, uint8_t border_tiles)
 	{
-		std::queue<sf::Vector2i> queue;
-		queue.push(position);
+		std::vector<sf::Vector2i> vector;
+		std::vector<bool>         visited(map_.size(), false);
 
-		while(!queue.empty())
+		vector.emplace_back(position);
+
+		while(!vector.empty())
 		{
-			const auto pos = queue.front();
-			queue.pop();
+			const auto pos = vector.back();
+			vector.pop_back();
 			at(pos) |= tiles;
 
 			const sf::Vector2i directions[] = {{0, 1}, {0, -1}, {1, 0}, {-1, 0}};
 			for(const auto offset : directions)
-				if(!(at(pos + offset) & (border_tiles | tiles)))
-					queue.push(pos + offset);
+			{
+				const auto new_pos = pos + offset;
+				if(!(at(new_pos) & (border_tiles | tiles)) && !visited[new_pos.y * size().x + new_pos.x])
+				{
+					vector.emplace_back(new_pos);
+					visited[new_pos.y * size().x + new_pos.x] = true;
+				}
+			}
 		}
 	}
 
@@ -608,6 +616,8 @@ public:
 			// FIXME: 因为不允许走回头路, 所以不能经过玩家已经在的位置
 			if(crate_pos + direction == player_pos)
 				continue;
+
+			// FIXME: 依然存在走回头路的问题
 
 			for(auto pos = crate_pos + direction; !(at(pos) & (Tile::Unmovable | Tile::Crate | Tile::CrateMovable));
 			    pos += direction)
