@@ -13,6 +13,7 @@
 #include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <numeric>
 #include <queue>
 #include <stdexcept>
 #include <string>
@@ -67,7 +68,7 @@ inline sf::Vector2i movement_to_direction(char move)
 
 inline sf::Vector2i rotate_direction(sf::Vector2i dir, int rotation)
 {
-	if (rotation > 0)
+	if(rotation > 0)
 	{
 		for(int i = 0; i < rotation; i++)
 			dir = {-dir.y, dir.x};
@@ -135,7 +136,7 @@ public:
 	/**
 	 * @brief 构造函数.
 	 *
-	 * @param map      XSB 格式地图数据.
+	 * @param ascii_map      XSB 格式地图数据.
 	 * @param size     地图大小.
 	 * @param metadata XSB 格式元数据.
 	 */
@@ -508,6 +509,7 @@ public:
 	uint8_t& at(int x, int y) { return at({x, y}); }
 	uint8_t  at(int x, int y) const { return at({x, y}); }
 
+	const auto&         map() const noexcept { return map_; };
 	const auto&         metadata() const noexcept { return metadata_; }
 	const sf::Vector2i& size() const noexcept { return size_; };
 	const auto&         movements() const noexcept { return movements_; }
@@ -515,9 +517,16 @@ public:
 
 	uint32_t crc32() const noexcept
 	{
-		// TODO: 先裁剪掉玩家无法到达的位置
-		// TODO: 计算选择和镜像共 8 种地图的 CRC32, 并取最小值
-		return ::crc32(0, map_.data(), map_.size());
+		// TODO: 计算旋转和镜像共 8 种地图变种的 CRC32
+		Level    level(*this);
+		uint32_t crc = std::numeric_limits<uint32_t>::max();
+		level.reset();
+		for(int i = 0; i < 4; i++)
+		{
+			crc = std::min(::crc32(0, level.map().data(), level.map().size()), crc);
+			level.rotate();
+		}
+		return crc;
 	};
 
 	/**
@@ -525,7 +534,7 @@ public:
 	 *
 	 * @return std::string XSB 格式的地图数据.
 	 */
-	std::string map() const
+	std::string ascii_map() const
 	{
 		std::string map;
 		for(int y = 0; y < size().y; y++)
@@ -601,6 +610,14 @@ public:
 
 	auto calc_crate_movable(const sf::Vector2i& crate_pos)
 	{
+		// TODO: 记录访问过的箱子位置, 需要记录可推动的位置, 不能只是箱子位置
+		struct Node
+		{
+			sf::Vector2i crate_pos;
+			sf::Vector2i player_pos;
+		};
+		std::vector<Node> visited;
+
 		// FIXME: 不能走回头路, 有回头路会死循环
 		std::unordered_map<sf::Vector2i, sf::Vector2i> came_from;
 		calc_crate_movable(crate_pos, player_position_, came_from);
@@ -677,7 +694,7 @@ public:
 					levels.emplace_back(data);
 
 					// 仅保留有地图数据的关卡
-					if(levels.back().map().empty())
+					if(levels.back().ascii_map().empty())
 						levels.pop_back();
 					data.clear();
 					continue;
@@ -693,7 +710,7 @@ public:
 				data += line + '\n';
 			}
 			levels.emplace_back(data);
-			if(levels.back().map().empty())
+			if(levels.back().ascii_map().empty())
 				levels.pop_back();
 		}
 
@@ -704,7 +721,7 @@ private:
 	/**
 	 * @brief 解析地图.
 	 *
-	 * @param map XSB 格式地图数据.
+	 * @param ascii_map XSB 格式地图数据.
 	 */
 	void parse_map(const std::string& map, const sf::Vector2i& size)
 	{

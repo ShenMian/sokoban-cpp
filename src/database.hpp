@@ -67,7 +67,7 @@ public:
 			add_level.bind(1, level.metadata().at("title"));
 		if(level.metadata().contains("author"))
 			add_level.bind(2, level.metadata().at("author"));
-		add_level.bind(3, level.map());
+		add_level.bind(3, level.ascii_map());
 		add_level.bind(4, level.crc32());
 		add_level.exec();
 	}
@@ -150,9 +150,7 @@ public:
 	bool update_level_answer(Level level)
 	{
 		assert(level.passed());
-		const auto answer = level.movements();
-		level.reset();
-		return update_level_answer(get_level_id(level).value(), answer);
+		return update_level_answer(get_level_id(level).value(), level.movements());
 	}
 
 	/**
@@ -166,7 +164,6 @@ public:
 		                                              "SET movements = ? "
 		                                              "WHERE level_id = ?");
 		update_movements.bind(1, level.movements());
-		level.reset();
 		update_movements.bind(2, get_level_id(level).value());
 		return update_movements.exec();
 	}

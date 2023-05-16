@@ -87,7 +87,6 @@ public:
 				passed_sound_.play();
 				print_result();
 				database_.update_level_answer(level_);
-				level_.reset();
 				database_.update_history_movements(level_);
 				std::this_thread::sleep_for(std::chrono::seconds(2));
 
@@ -185,10 +184,10 @@ private:
 				level_.clear(Tile::CrateMovable);
 
 				std::vector<sf::Vector2i> path;
-				for(auto pos = mouse_pos; came_from.contains(pos);)
+				for(auto pos = mouse_pos; came_from_.contains(pos);)
 				{
 					path.push_back(pos);
-					pos = came_from[pos];
+					pos = came_from_[pos];
 				}
 				std::reverse(path.begin(), path.end());
 
@@ -212,7 +211,7 @@ private:
 			{
 				// 切换选中的箱子
 				level_.clear(Tile::CrateMovable);
-				came_from       = level_.calc_crate_movable(mouse_pos);
+				came_from_       = level_.calc_crate_movable(mouse_pos);
 				selected_crate_ = mouse_pos;
 			}
 			else
@@ -227,7 +226,7 @@ private:
 		{
 			// 选中鼠标处的箱子
 			sf::Clock clock;
-			came_from = level_.calc_crate_movable(mouse_pos);
+			came_from_ = level_.calc_crate_movable(mouse_pos);
 			std::cout << "Calc crate movable: " << clock.getElapsedTime().asMicroseconds()
 			          << "us\n"; // TODO: performance test
 			selected_crate_ = mouse_pos;
@@ -297,12 +296,14 @@ private:
 		{
 			level_.undo();
 			selected_crate_ = {-1, -1};
+			level_.clear(Tile::PlayerMovable | Tile::CrateMovable);
 			keyboard_input_clock_.restart();
 		}
 		if(sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
 		{
 			level_.reset();
 			selected_crate_ = {-1, -1};
+			level_.clear(Tile::PlayerMovable | Tile::CrateMovable);
 			keyboard_input_clock_.restart();
 		}
 		if(sf::Keyboard::isKeyPressed(sf::Keyboard::P))
@@ -355,7 +356,7 @@ private:
 	std::jthread input_thread_;
 
 	sf::Vector2i                                   selected_crate_ = {-1, -1};
-	std::unordered_map<sf::Vector2i, sf::Vector2i> came_from;
+	std::unordered_map<sf::Vector2i, sf::Vector2i> came_from_;
 
 	Database database_;
 
