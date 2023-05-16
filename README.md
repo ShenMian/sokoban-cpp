@@ -13,6 +13,7 @@ A simple sokoban, using [SFML] framework.
 | `W`/`A`/`S`/`D`/`Up`/`Down`/`Left`/`Right` | Move the character                                                     |
 | `Esc`                                      | Reload current level                                                   |
 | `BackSpace`                                | Single step undo                                                       |
+| `R`                                        | Rotate map clockwise                                                   |
 | `P`                                        | Demonstrate how to pass the level (if the level comes with the answer) |
 
 ## Assets
