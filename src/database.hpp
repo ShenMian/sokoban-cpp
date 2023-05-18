@@ -35,7 +35,7 @@ public:
 		               "	level_id  INTEGER UNIQUE,"
 		               "	movements TEXT,"
 		               "	datetime  DATETIME NOT NULL,"
-		               "	FOREIGN KEY(level_id) REFERENCES tb_level(id)"
+		               "	FOREIGN KEY (level_id) REFERENCES tb_level(id)"
 		               ")");
 	}
 

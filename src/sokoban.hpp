@@ -14,7 +14,7 @@
 class Sokoban
 {
 public:
-	Sokoban() : level_(""), material_("img/default.png"), database_("database.db") {}
+	Sokoban() : level_(""), material_("img/default_new.png"), database_("database.db") {}
 
 	void run(int argc, char* argv[])
 	{
@@ -24,6 +24,9 @@ public:
 		database_.import_levels_from_file(std::filesystem::path(argv[0]).parent_path() / "level" / "default.xsb");
 		database_.import_levels_from_file(std::filesystem::path(argv[0]).parent_path() / "level" / "box_world.xsb");
 
+		// preview_levels(
+		//     database_.import_levels_from_file(std::filesystem::path(argv[0]).parent_path() / "level" / "default.xsb"));
+
 		std::cout << R"(
    ____     __        __           
   / __/__  / /_____  / /  ___ ____ 
@@ -31,43 +34,45 @@ public:
 /___/\___/_/\_\\___/_.__/\_,_/_//_/
 
 )";
-		/*
 		std::cout << R"(
-		      1. Open the lastest level
-		      2. Import from file
-		      3. Open from clipboard
+     1. Open the lastest level
+     2. Open level by id
+     3. Import from file
 
-		)";
-		*/
+)";
 
-		const std::string clipboard = sf::Clipboard::getString();
-		if(!clipboard.empty() && (clipboard.front() == ';' || clipboard.front() == '-' || clipboard.front() == '#'))
+		char option;
+		std::cin >> option;
+
+		switch(option)
 		{
-			try
-			{
-				Level level(clipboard);
-				database_.import_level(level);
-				database_.upsert_level_history(level);
-			}
-			catch(...)
-			{
-			}
+		case '1':
+			break;
+
+		case '2': {
+			int id;
+			std::cout << "Level ID: ";
+			std::cin >> id;
+			database_.upsert_level_history(id);
+			break;
 		}
 
-		if(argc == 2)
-			database_.upsert_level_history(std::atoi(argv[1]));
+		case '3': {
+			std::filesystem::path path;
+			std::cout << "File path: ";
+			std::cin >> path;
+			const auto levels = database_.import_levels_from_file(path);
+			database_.upsert_level_history(database_.get_level_id(levels.front()).value());
+			break;
+		}
 
-		sf::Clock clock;
-		level_ = database_.get_level_by_id(database_.get_latest_level_id().value_or(1)).value();
-		std::cout << "Load level: " << clock.getElapsedTime().asMicroseconds() << "us\n"; // TODO: performance test
-
-		print_info();
-		if(level_.metadata().contains("title"))
-			window_.setTitle("Sokoban - " + level_.metadata().at("title"));
-		database_.upsert_level_history(level_);
-		level_.play(database_.get_level_history_movements(level_));
+		default:
+			throw std::runtime_error("invalid option");
+		}
 
 		create_window();
+
+		load_latest_level();
 
 		input_thread_ = std::jthread([&](std::stop_token token) {
 			while(!token.stop_requested())
@@ -139,6 +144,63 @@ private:
 		background_music_.openFromFile("audio/background.wav");
 		background_music_.setVolume(60.f);
 		background_music_.setLoop(true);
+	}
+
+	void import_level_from_clipboard()
+	{
+		const std::string clipboard = sf::Clipboard::getString();
+		if(!clipboard.empty())
+		{
+			try
+			{
+				Level level(clipboard);
+				database_.import_level(level);
+				database_.upsert_level_history(level);
+			}
+			catch(...)
+			{
+			}
+		}
+	}
+
+	void preview_levels(const std::vector<Level>& levels)
+	{
+		const sf::Vector2i cell_size  = {5, static_cast<int>(std::ceil(levels.size() / 5.f))};
+		const sf::Vector2i level_size = {500, 500};
+		const sf::Vector2i spacing    = {20, 20};
+
+		sf::RenderTexture preview;
+		preview.create(cell_size.x * (level_size.x + spacing.x) - spacing.x,
+		               cell_size.y * (level_size.y + spacing.y) - spacing.y);
+		for (int i = 0; i < levels.size(); i++)
+		{
+			sf::RenderTexture target;
+			target.create(level_size.x, level_size.y);
+			target.clear(sf::Color::Transparent);
+			levels[i].render(target, material_);
+			target.display();
+
+			sf::Sprite sprite;
+			sprite.setTexture(target.getTexture());
+			sprite.setPosition((i % cell_size.x) * (level_size.x + spacing.x),
+			                   (i / cell_size.x) * (level_size.y + spacing.y));
+			preview.draw(sprite);
+		}
+		preview.display();
+		preview.getTexture().copyToImage().saveToFile("D:/Users/sms/Desktop/level.png");
+	}
+
+	void load_latest_level()
+	{
+		sf::Clock clock;
+		level_ = database_.get_level_by_id(database_.get_latest_level_id().value_or(1)).value();
+		std::cout << "Load level: " << clock.getElapsedTime().asMicroseconds() << "us\n"; // TODO: performance test
+
+		print_info();
+		if(level_.metadata().contains("title"))
+			window_.setTitle("Sokoban - " + level_.metadata().at("title"));
+		database_.upsert_level_history(level_);
+		level_.play(database_.get_level_history_movements(level_));
 	}
 
 	void handle_window_event()
@@ -260,8 +322,7 @@ private:
 				movements += 'r';
 			current_pos += direction;
 		}
-		// level_.play(movements, std::chrono::milliseconds(100));
-		level_.play(movements);
+		level_.play(movements, std::chrono::milliseconds(100));
 	}
 
 	void handle_keyboard_input()
@@ -292,21 +353,26 @@ private:
 			level_.play("r");
 			keyboard_input_clock_.restart();
 		}
-		if(sf::Keyboard::isKeyPressed(sf::Keyboard::BackSpace))
+		else if(sf::Keyboard::isKeyPressed(sf::Keyboard::BackSpace))
 		{
 			level_.undo();
 			selected_crate_ = {-1, -1};
 			level_.clear(Tile::PlayerMovable | Tile::CrateMovable);
 			keyboard_input_clock_.restart();
 		}
-		if(sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
+		else if(sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
 		{
 			level_.reset();
 			selected_crate_ = {-1, -1};
 			level_.clear(Tile::PlayerMovable | Tile::CrateMovable);
 			keyboard_input_clock_.restart();
 		}
-		if(sf::Keyboard::isKeyPressed(sf::Keyboard::P))
+		else if(sf::Keyboard::isKeyPressed(sf::Keyboard::R))
+		{
+			level_.rotate();
+			keyboard_input_clock_.restart();
+		}
+		else if(sf::Keyboard::isKeyPressed(sf::Keyboard::P))
 		{
 			if(!level_.metadata().contains("answer"))
 				return;
@@ -318,9 +384,11 @@ private:
 			level_.play(level_.metadata().at("answer"), std::chrono::milliseconds(200));
 			keyboard_input_clock_.restart();
 		}
-		if(sf::Keyboard::isKeyPressed(sf::Keyboard::R))
+		else if(sf::Keyboard::isKeyPressed(sf::Keyboard::LControl) &&
+		        sf::Keyboard::isKeyPressed(sf::Keyboard::V))
 		{
-			level_.rotate();
+			import_level_from_clipboard();
+			load_latest_level();
 			keyboard_input_clock_.restart();
 		}
 	}

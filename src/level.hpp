@@ -69,15 +69,11 @@ inline sf::Vector2i movement_to_direction(char move)
 inline sf::Vector2i rotate_direction(sf::Vector2i dir, int rotation)
 {
 	if(rotation > 0)
-	{
 		for(int i = 0; i < rotation; i++)
 			dir = {-dir.y, dir.x};
-	}
 	else
-	{
 		for(int i = 0; i < std::abs(rotation); i++)
 			dir = {dir.y, -dir.x};
-	}
 	return dir;
 }
 
@@ -99,12 +95,10 @@ public:
 	 */
 	Level(const std::string& data)
 	{
-		std::string  map;
+		std::string  map, metadata;
 		sf::Vector2i size;
-		std::string  metadata;
 
 		std::istringstream stream(data);
-
 		for(std::string line; std::getline(stream, line);)
 		{
 			if(line.front() == ';')
@@ -241,10 +235,10 @@ public:
 	/**
 	 * @brief 渲染地图.
 	 *
-	 * @param window   窗口.
+	 * @param target   渲染目标.
 	 * @param material 材质.
 	 */
-	void render(sf::RenderWindow& window, const Material& material)
+	void render(sf::RenderTarget& target, const Material& material) const
 	{
 		sf::Vector2i player_dir;
 		if(movements_.empty())
@@ -253,18 +247,18 @@ public:
 			player_dir = movement_to_direction(rotate_movement(movements_.back(), rotation_));
 
 		// TODO: 需要重构, 可读性较差, 非必要的重复计算
-		const auto window_size   = sf::Vector2f(window.getSize());
-		const auto window_center = window_size / 2.f;
+		const auto target_size   = sf::Vector2f(target.getSize());
+		const auto target_center = target_size / 2.f;
 
 		const auto origin_tile_size =
 		    sf::Vector2f(static_cast<float>(material.tile_size), static_cast<float>(material.tile_size));
 		const auto origin_map_size = sf::Vector2f(origin_tile_size.x * size().x, origin_tile_size.y * size().y);
 
-		const auto scale     = std::min({window_size.x / origin_map_size.x, window_size.y / origin_map_size.y, 1.f});
+		const auto scale     = std::min({target_size.x / origin_map_size.x, target_size.y / origin_map_size.y, 1.f});
 		const auto tile_size = origin_tile_size * scale;
 		const auto map_size  = origin_map_size * scale;
 
-		const auto offset = window_center - map_size / 2.f;
+		const auto offset = target_center - map_size / 2.f;
 		for(int y = 0; y < size().y; y++)
 		{
 			for(int x = 0; x < size().x; x++)
@@ -279,7 +273,7 @@ public:
 				if(tiles & Tile::Floor)
 				{
 					material.set_texture(sprite, Tile::Floor);
-					window.draw(sprite);
+					target.draw(sprite);
 					tiles &= ~Tile::Floor;
 				}
 
@@ -299,13 +293,13 @@ public:
 
 				case Tile::Target | Tile::Crate:
 				case Tile::Target | Tile::Crate | Tile::Deadlocked:
-					sprite.setColor(sf::Color(180, 180, 180));
+					sprite.setColor(sf::Color(0, 255, 0));
 					material.set_texture(sprite, Tile::Crate);
 					break;
 
 				case Tile::Target | Tile::Player:
 					material.set_texture(sprite, Tile::Target);
-					window.draw(sprite);
+					target.draw(sprite);
 					material.set_texture_player(sprite, player_dir);
 					break;
 
@@ -318,13 +312,13 @@ public:
 					material.set_texture_player(sprite, player_dir);
 					break;
 				}
-				window.draw(sprite);
+				target.draw(sprite);
 
 				if(tiles & Tile::CrateMovable)
 				{
 					material.set_texture(sprite, Tile::Crate);
 					sprite.setColor(sf::Color(255, 255, 255, 100));
-					window.draw(sprite);
+					target.draw(sprite);
 				}
 			}
 		}
@@ -637,16 +631,17 @@ public:
 				continue;
 
 			// FIXME: 因为不允许走回头路, 所以不能经过玩家已经在的位置
-			if(crate_pos + direction == player_pos)
-				continue;
+			// if(crate_pos + direction == player_pos)
+			// 	continue;
 
 			// FIXME: 依然存在走回头路的问题
+			// TODO: 防止 came_from 形成闭环
 
 			for(auto pos = crate_pos + direction; !(at(pos) & (Tile::Unmovable | Tile::Crate | Tile::CrateMovable));
 			    pos += direction)
 			{
-				at(pos) |= Tile::CrateMovable;
 				came_from[pos] = crate_pos;
+				at(pos) |= Tile::CrateMovable;
 
 				at(pos - direction) &= ~Tile::Crate;
 				at(pos) |= Tile::Crate;

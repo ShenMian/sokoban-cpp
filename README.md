@@ -15,6 +15,7 @@ A simple sokoban, using [SFML] framework.
 | `BackSpace`                                | Single step undo                                                       |
 | `R`                                        | Rotate map clockwise                                                   |
 | `P`                                        | Demonstrate how to pass the level (if the level comes with the answer) |
+| `Ctrl` + `V`                               | Import level from clipboard                                            |
 
 ## Assets
 
