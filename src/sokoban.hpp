@@ -86,7 +86,7 @@ public:
 
 				passed_sound_.play();
 				print_result();
-				database_.update_level_answer(level_);
+				database_.update_level_solution(level_);
 				database_.update_history_movements(level_);
 				std::this_thread::sleep_for(std::chrono::seconds(2));
 

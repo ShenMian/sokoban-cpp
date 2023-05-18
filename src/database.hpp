@@ -23,13 +23,13 @@ public:
 	void setup()
 	{
 		database_.exec("CREATE TABLE IF NOT EXISTS tb_level ("
-		               "	id INTEGER PRIMARY KEY AUTOINCREMENT,"
-		               "	title  TEXT,"
-		               "	author TEXT,"
-		               "	map    TEXT NOT NULL,"
-		               "	crc32  INTEGER NOT NULL,"
-		               "	answer TEXT,"
-		               "	date   DATE NOT NULL"
+		               "	id       INTEGER PRIMARY KEY AUTOINCREMENT,"
+		               "	title    TEXT,"
+		               "	author   TEXT,"
+		               "	map      TEXT NOT NULL,"
+		               "	crc32    INTEGER NOT NULL,"
+		               "	solution TEXT,"
+		               "	date     DATE NOT NULL"
 		               ")");
 		database_.exec("CREATE TABLE IF NOT EXISTS tb_history ("
 		               "	level_id  INTEGER UNIQUE,"
@@ -55,21 +55,15 @@ public:
 	 */
 	void import_level(const Level& level)
 	{
-		SQLite::Statement query_level(database_, "SELECT * FROM tb_level "
-		                                         "WHERE crc32 = ?");
-		SQLite::Statement add_level(database_, "INSERT INTO tb_level(title, author, map, crc32, date) "
-		                                       "VALUES (?, ?, ?, ?, DATE('now'))");
-		query_level.bind(1, level.crc32());
-		if(query_level.executeStep())
-			return;
-
+		SQLite::Statement upsert_level(database_, "INSERT OR IGNORE INTO tb_level(title, author, map, crc32, date) "
+		                                          "VALUES (?, ?, ?, ?, DATE('now'))");
 		if(level.metadata().contains("title"))
-			add_level.bind(1, level.metadata().at("title"));
+			upsert_level.bind(1, level.metadata().at("title"));
 		if(level.metadata().contains("author"))
-			add_level.bind(2, level.metadata().at("author"));
-		add_level.bind(3, level.ascii_map());
-		add_level.bind(4, level.crc32());
-		add_level.exec();
+			upsert_level.bind(2, level.metadata().at("author"));
+		upsert_level.bind(3, level.ascii_map());
+		upsert_level.bind(4, level.crc32());
+		upsert_level.exec();
 	}
 
 	/**
@@ -77,11 +71,12 @@ public:
 	 *
 	 * @param path XSB 格式文件路径.
 	 */
-	void import_levels_from_file(const std::filesystem::path& path)
+	std::vector<Level> import_levels_from_file(const std::filesystem::path& path)
 	{
 		const auto levels = Level::load(path);
 		for(const auto& level : levels)
 			import_level(level);
+		return levels;
 	}
 
 	/**
@@ -106,7 +101,7 @@ public:
 	 */
 	std::optional<Level> get_level_by_id(int id)
 	{
-		SQLite::Statement query_level(database_, "SELECT title, author, map, answer FROM tb_level "
+		SQLite::Statement query_level(database_, "SELECT title, author, map, solution FROM tb_level "
 		                                         "WHERE id = ?");
 		query_level.bind(1, id);
 		if(!query_level.executeStep())
@@ -116,8 +111,8 @@ public:
 			data += "Title: " + query_level.getColumn("title").getString() + '\n';
 		if(!query_level.getColumn("author").isNull())
 			data += "Author: " + query_level.getColumn("author").getString() + '\n';
-		if(!query_level.getColumn("answer").isNull())
-			data += "Answer: " + query_level.getColumn("answer").getString() + '\n';
+		if(!query_level.getColumn("solution").isNull())
+			data += "Solution: " + query_level.getColumn("solution").getString() + '\n';
 		data += query_level.getColumn("map").getString();
 		return Level(data);
 	}
@@ -126,20 +121,21 @@ public:
 	 * @brief 更新关卡答案.
 	 *
 	 * @param level_id 关卡 ID.
-	 * @param answer   关卡答案.
+	 * @param solution 关卡答案.
 	 */
-	bool update_level_answer(int level_id, const std::string& answer)
+	bool update_level_solution(int level_id, const std::string& solution)
 	{
-		SQLite::Statement update_answer(database_, "UPDATE tb_level "
-		                                           "SET answer = ? "
-		                                           "WHERE id = ? AND EXISTS ("
-		                                           "	SELECT * FROM tb_level WHERE id = ? AND (answer IS NULL OR LENGTH(answer) > LENGTH(?))"
-		                                           ")");
-		update_answer.bind(1, answer);
-		update_answer.bind(2, level_id);
-		update_answer.bind(3, level_id);
-		update_answer.bind(4, answer);
-		return update_answer.exec();
+		SQLite::Statement update_solution(
+		    database_, "UPDATE tb_level "
+		               "SET solution = ? "
+		               "WHERE id = ? AND EXISTS ("
+		               "	SELECT * FROM tb_level WHERE id = ? AND (solution IS NULL OR LENGTH(solution) > LENGTH(?))"
+		               ")");
+		update_solution.bind(1, solution);
+		update_solution.bind(2, level_id);
+		update_solution.bind(3, level_id);
+		update_solution.bind(4, solution);
+		return update_solution.exec();
 	}
 
 	/**
@@ -147,10 +143,10 @@ public:
 	 *
 	 * @param level 已通关的关卡.
 	 */
-	bool update_level_answer(Level level)
+	bool update_level_solution(Level level)
 	{
 		assert(level.passed());
-		return update_level_answer(get_level_id(level).value(), level.movements());
+		return update_level_solution(get_level_id(level).value(), level.movements());
 	}
 
 	/**
