@@ -178,14 +178,34 @@ private:
 
 	void load_next_level()
 	{
-		const auto id = database_.get_level_id(level_).value();
-		level_        = database_.get_level_by_id(id + 1).value();
+		const auto id     = database_.get_level_id(level_).value();
+		auto       result = database_.get_level_by_id(id + 1);
+		if(!result.has_value())
+			return;
+		level_ = result.value();
+
+		print_info();
+		if(level_.metadata().contains("title"))
+			window_.setTitle("Sokoban - " + level_.metadata().at("title"));
+
+		database_.upsert_level_history(level_);
+		level_.play(database_.get_level_history_movements(level_));
 	}
 
 	void load_prev_level()
 	{
-		const auto id = database_.get_level_id(level_).value();
-		level_        = database_.get_level_by_id(id - 1).value();
+		const auto id     = database_.get_level_id(level_).value();
+		auto       result = database_.get_level_by_id(id - 1);
+		if(!result.has_value())
+			return;
+		level_ = result.value();
+
+		print_info();
+		if(level_.metadata().contains("title"))
+			window_.setTitle("Sokoban - " + level_.metadata().at("title"));
+
+		database_.upsert_level_history(level_);
+		level_.play(database_.get_level_history_movements(level_));
 	}
 
 	void load_next_unsolved_level()
@@ -411,6 +431,16 @@ private:
 		else if(sf::Keyboard::isKeyPressed(sf::Keyboard::R))
 		{
 			level_.rotate();
+			keyboard_input_clock_.restart();
+		}
+		else if(sf::Keyboard::isKeyPressed(sf::Keyboard::Hyphen))
+		{
+			load_prev_level();
+			keyboard_input_clock_.restart();
+		}
+		else if(sf::Keyboard::isKeyPressed(sf::Keyboard::Equal))
+		{
+			load_next_level();
 			keyboard_input_clock_.restart();
 		}
 		else if(sf::Keyboard::isKeyPressed(sf::Keyboard::P))
