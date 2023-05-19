@@ -100,6 +100,11 @@ public:
 		std::string  map, metadata;
 		sf::Vector2i size;
 
+		auto to_lowercase = [](auto str) {
+			std::transform(str.cbegin(), str.cend(), str.begin(), [](auto c) { return std::tolower(c); });
+			return str;
+		};
+
 		std::istringstream stream(data);
 		for(std::string line; std::getline(stream, line);)
 		{
@@ -108,13 +113,15 @@ public:
 
 			if(line.find(":") != std::string::npos)
 			{
-				if(line.substr(0, 8) == "Comment:")
+				if(to_lowercase(line.substr(0, 8)) == "comment:")
 				{
 					do
 					{
 						metadata += line + '\n';
+						if(!stream)
+							throw std::runtime_error("unexpected end of stream");
 						std::getline(stream, line);
-					} while(line.substr(0, 12) != "Comment-End:");
+					} while(to_lowercase(line.substr(0, 12)) != "comment-end:");
 				}
 				metadata += line + '\n';
 				continue;
@@ -683,7 +690,10 @@ public:
 		if(!file)
 			throw std::runtime_error("failed to open file");
 
-		// FIXME: 块注释必须被 "Comment:" 和 "Comment-End:" 包裹, 区分大小写
+		auto to_lowercase = [](auto str) {
+			std::transform(str.cbegin(), str.cend(), str.begin(), [](auto c) { return std::tolower(c); });
+			return str;
+		};
 
 		std::vector<Level> levels;
 		while(!file.eof())
@@ -702,14 +712,15 @@ public:
 					data.clear();
 					continue;
 				}
-				if(line.substr(0, 8) == "Comment:")
+				if(to_lowercase(line.substr(0, 8)) == "comment:")
 				{
 					do
 					{
 						data += line + '\n';
-						// TODO: add end of file check
+						if(file.eof())
+							throw std::runtime_error("unexpected end of file");
 						std::getline(file, line);
-					} while(line.substr(0, 12) != "Comment-End:");
+					} while(to_lowercase(line.substr(0, 12)) != "comment-end:");
 				}
 				data += line + '\n';
 			}
@@ -806,10 +817,13 @@ private:
 			const auto it = line.find(":");
 			assert(it != std::string::npos);
 
-			auto key   = line.substr(0, it);
-			auto value = line.substr(it + 1);
+			auto to_lowercase = [](auto str) {
+				std::transform(str.cbegin(), str.cend(), str.begin(), [](auto c) { return std::tolower(c); });
+				return str;
+			};
 
-			std::transform(key.cbegin(), key.cend(), key.begin(), [](auto c) { return std::tolower(c); });
+			const auto key   = to_lowercase(line.substr(0, it));
+			auto       value = line.substr(it + 1);
 
 			while(value.starts_with(" "))
 				value.erase(0, 1);
@@ -819,9 +833,11 @@ private:
 			if(key == "comment")
 			{
 				std::getline(stream, line);
-				while(line.substr(0, 12) != "Comment-End:")
+				while(to_lowercase(line.substr(0, 12)) != "comment-end:")
 				{
 					value += line + '\n';
+					if(!stream)
+						throw std::runtime_error("unexpected end of stream");
 					std::getline(stream, line);
 				}
 			}
