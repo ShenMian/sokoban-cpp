@@ -19,15 +19,18 @@ A simple sokoban, using [SFML] framework.
 
 ## Keymap
 
-| Key                                        | Action                      |
-| ------------------------------------------ | --------------------------- |
-| `W`/`A`/`S`/`D`/`Up`/`Down`/`Left`/`Right` | Move the character          |
-| `Esc`                                      | Reload current level        |
-| `BackSpace`                                | Single step undo            |
-| `R`                                        | Rotate map clockwise        |
-| `P`                                        | Replay solution             |
-| `Ctrl` + `I`                               | Switch instant move         |
-| `Ctrl` + `V`                               | Import level from clipboard |
+| Key                        | Action                            |
+| -------------------------- | --------------------------------- |
+| `W`/`A`/`S`/`D`            | Move the character                |
+| `Up`/`Down`/`Left`/`Right` | Move the character                |
+| `H`/`J`/`K`/`L`            | Move the character                |
+| `Esc`                      | Reload current level              |
+| `BackSpace`                | Single step undo                  |
+| `R`                        | Rotate map clockwise              |
+| `-`/`=`                    | Switch to the previous/next level |
+| `P`                        | Replay solution                   |
+| `Ctrl` + `I`               | Switch instant move               |
+| `Ctrl` + `V`               | Import level from clipboard       |
 
 ## Assets
 
