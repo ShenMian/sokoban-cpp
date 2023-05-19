@@ -683,7 +683,7 @@ public:
 		if(!file)
 			throw std::runtime_error("failed to open file");
 
-		// warning: 块注释必须被 "Comment:" 和 "Comment-End:" 包裹, 区分大小写
+		// FIXME: 块注释必须被 "Comment:" 和 "Comment-End:" 包裹, 区分大小写
 
 		std::vector<Level> levels;
 		while(!file.eof())
@@ -707,6 +707,7 @@ public:
 					do
 					{
 						data += line + '\n';
+						// TODO: add end of file check
 						std::getline(file, line);
 					} while(line.substr(0, 12) != "Comment-End:");
 				}

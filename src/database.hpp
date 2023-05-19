@@ -150,7 +150,7 @@ public:
 	}
 
 	/**
-	 * @brief 更新关卡历史移动.
+	 * @brief 更新关卡会话历史移动.
 	 *
 	 * @param level_id 关卡 ID.
 	 */
@@ -165,7 +165,7 @@ public:
 	}
 
 	/**
-	 * @brief 更新关卡历史移动.
+	 * @brief 更新关卡会话历史移动.
 	 *
 	 * @param level 关卡.
 	 */
@@ -178,7 +178,7 @@ public:
 	}
 
 	/**
-	 * @brief 添加关卡历史.
+	 * @brief 添加关卡会话历史.
 	 *
 	 * @param level 关卡.
 	 */
@@ -188,7 +188,7 @@ public:
 	}
 
 	/**
-	 * @brief 添加关卡历史.
+	 * @brief 添加关卡会话历史.
 	 *
 	 * @param level_id 关卡 ID.
 	 */
@@ -202,7 +202,7 @@ public:
 	}
 
 	/**
-	 * @brief 获取历史最新关卡 ID.
+	 * @brief 获取历史最新会话关卡 ID.
 	 */
 	std::optional<int> get_latest_level_id()
 	{
@@ -215,7 +215,7 @@ public:
 	}
 
 	/**
-	 * @brief 获取关卡历史移动.
+	 * @brief 获取关卡会话历史移动.
 	 *
 	 * @param level 关卡.
 	 */
