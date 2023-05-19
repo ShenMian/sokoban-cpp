@@ -107,7 +107,6 @@ public:
 				std::this_thread::sleep_for(std::chrono::seconds(2));
 
 				load_next_unsolved_level();
-
 			}
 		}
 		database_.update_history_movements(level_);
@@ -119,16 +118,6 @@ private:
 		level_.render(window_, material_);
 		window_.display();
 		window_.clear(sf::Color(115, 115, 115));
-	}
-
-	void create_window()
-	{
-		const auto mode = sf::VideoMode::getDesktopMode();
-		window_.create(sf::VideoMode{mode.width / 2, mode.height / 2}, "Sokoban", sf::Style::Close);
-		sf::Image icon;
-		icon.loadFromFile("img/crate.png");
-		window_.setIcon(icon.getSize().x, icon.getSize().y, icon.getPixelsPtr());
-		window_.setFramerateLimit(60);
 	}
 
 	void load_sounds()
@@ -169,7 +158,7 @@ private:
 		sf::RenderTexture preview;
 		preview.create(cell_size.x * (level_size.x + spacing.x) - spacing.x,
 		               cell_size.y * (level_size.y + spacing.y) - spacing.y);
-		for (size_t i = 0; i < levels.size(); i++)
+		for(size_t i = 0; i < levels.size(); i++)
 		{
 			sf::RenderTexture target;
 			target.create(level_size.x, level_size.y);
@@ -232,6 +221,17 @@ private:
 		level_.play(database_.get_level_history_movements(level_));
 	}
 
+	void create_window()
+	{
+		const auto mode = sf::VideoMode::getDesktopMode();
+		// window_.create(sf::VideoMode{mode.width / 2, mode.height / 2}, "Sokoban", sf::Style::Close);
+		window_.create(sf::VideoMode{mode.width / 2, mode.height / 2}, "Sokoban");
+		sf::Image icon;
+		icon.loadFromFile("img/crate.png");
+		window_.setIcon(icon.getSize().x, icon.getSize().y, icon.getPixelsPtr());
+		window_.setFramerateLimit(60);
+	}
+
 	void handle_window_event()
 	{
 		for(auto event = sf::Event{}; window_.pollEvent(event);)
@@ -242,6 +242,8 @@ private:
 				input_thread_.join();
 				window_.close();
 			}
+			if(event.type == sf::Event::Resized)
+				window_.setView(sf::View(sf::FloatRect(0, 0, event.size.width, event.size.height)));
 		}
 	}
 
@@ -262,9 +264,19 @@ private:
 		if(mouse_pos.x < 1 || mouse_pos.x > level_.size().x || mouse_pos.y < 1 || mouse_pos.y > level_.size().y)
 			return;
 
-		if(mouse_select_clock.getElapsedTime() < sf::seconds(0.25f))
+		if(mouse_select_clock_.getElapsedTime() < sf::seconds(0.25f))
 			return;
-		mouse_select_clock.restart();
+		mouse_select_clock_.restart();
+
+		try
+		{
+			level_.at(mouse_pos);
+		}
+		catch(...)
+		{
+			return;
+		}
+
 		if(selected_crate_ != sf::Vector2i(-1, -1))
 		{
 			if(level_.at(mouse_pos) & Tile::CrateMovable && selected_crate_ != mouse_pos)
@@ -302,7 +314,7 @@ private:
 			{
 				// 切换选中的箱子
 				level_.clear(Tile::CrateMovable);
-				came_from_       = level_.calc_crate_movable(mouse_pos);
+				came_from_      = level_.calc_crate_movable(mouse_pos);
 				selected_crate_ = mouse_pos;
 			}
 			else
@@ -456,7 +468,7 @@ private:
 	sf::Sound       passed_sound_;
 	sf::Music       background_music_;
 
-	sf::Clock    keyboard_input_clock_, mouse_select_clock;
+	sf::Clock    keyboard_input_clock_, mouse_select_clock_;
 	std::jthread input_thread_;
 
 	std::chrono::milliseconds move_interval_ = std::chrono::milliseconds(200);
