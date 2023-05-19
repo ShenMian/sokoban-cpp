@@ -14,7 +14,7 @@
 class Sokoban
 {
 public:
-	Sokoban() : level_(""), material_("img/default_new.png"), database_("database.db") {}
+	Sokoban() : level_(""), material_("img/default.png"), database_("database.db") {}
 
 	void run(int argc, char* argv[])
 	{

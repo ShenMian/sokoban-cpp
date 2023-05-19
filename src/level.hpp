@@ -22,8 +22,6 @@
 #include <unordered_set>
 #include <vector>
 
-#include <iostream>
-
 template <class T>
 struct std::hash<sf::Vector2<T>>
 {
