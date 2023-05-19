@@ -24,8 +24,10 @@ public:
 		database_.import_levels_from_file(std::filesystem::path(argv[0]).parent_path() / "level" / "default.xsb");
 		database_.import_levels_from_file(std::filesystem::path(argv[0]).parent_path() / "level" / "box_world.xsb");
 
-		// preview_levels(
-		//     database_.import_levels_from_file(std::filesystem::path(argv[0]).parent_path() / "level" / "default.xsb"));
+		/*
+		preview_levels(
+		    database_.import_levels_from_file(std::filesystem::path(argv[0]).parent_path() / "level" / "default.xsb"));
+		*/
 
 		std::cout << R"(
    ____     __        __           
@@ -92,6 +94,7 @@ public:
 				passed_sound_.play();
 				print_result();
 				database_.update_level_solution(level_);
+				level_.reset();
 				database_.update_history_movements(level_);
 				std::this_thread::sleep_for(std::chrono::seconds(2));
 
@@ -146,7 +149,7 @@ private:
 		background_music_.setLoop(true);
 	}
 
-	void import_level_from_clipboard()
+	std::optional<Level> import_level_from_clipboard()
 	{
 		const std::string clipboard = sf::Clipboard::getString();
 		if(!clipboard.empty())
@@ -155,12 +158,13 @@ private:
 			{
 				Level level(clipboard);
 				database_.import_level(level);
-				database_.upsert_level_history(level);
+				return level;
 			}
 			catch(...)
 			{
 			}
 		}
+		return std::nullopt;
 	}
 
 	void preview_levels(const std::vector<Level>& levels)
@@ -172,7 +176,7 @@ private:
 		sf::RenderTexture preview;
 		preview.create(cell_size.x * (level_size.x + spacing.x) - spacing.x,
 		               cell_size.y * (level_size.y + spacing.y) - spacing.y);
-		for (int i = 0; i < levels.size(); i++)
+		for (size_t i = 0; i < levels.size(); i++)
 		{
 			sf::RenderTexture target;
 			target.create(level_size.x, level_size.y);
@@ -182,8 +186,8 @@ private:
 
 			sf::Sprite sprite;
 			sprite.setTexture(target.getTexture());
-			sprite.setPosition((i % cell_size.x) * (level_size.x + spacing.x),
-			                   (i / cell_size.x) * (level_size.y + spacing.y));
+			sprite.setPosition(static_cast<float>((i % cell_size.x) * (level_size.x + spacing.x)),
+			                   static_cast<float>((i / cell_size.x) * (level_size.y + spacing.y)));
 			preview.draw(sprite);
 		}
 		preview.display();
@@ -387,7 +391,8 @@ private:
 		else if(sf::Keyboard::isKeyPressed(sf::Keyboard::LControl) &&
 		        sf::Keyboard::isKeyPressed(sf::Keyboard::V))
 		{
-			import_level_from_clipboard();
+			const Level level = import_level_from_clipboard().value();
+			database_.upsert_level_history(level);
 			load_latest_level();
 			keyboard_input_clock_.restart();
 		}

@@ -22,6 +22,8 @@
 #include <unordered_set>
 #include <vector>
 
+#include <iostream>
+
 template <class T>
 struct std::hash<sf::Vector2<T>>
 {
@@ -240,11 +242,7 @@ public:
 	 */
 	void render(sf::RenderTarget& target, const Material& material) const
 	{
-		sf::Vector2i player_dir;
-		if(movements_.empty())
-			player_dir = {0, 1};
-		else
-			player_dir = movement_to_direction(rotate_movement(movements_.back(), rotation_));
+		const sf::Vector2i player_dir = get_player_direction();
 
 		// TODO: 需要重构, 可读性较差, 非必要的重复计算
 		const auto target_size   = sf::Vector2f(target.getSize());
@@ -630,16 +628,26 @@ public:
 			if(!(at(crate_pos - direction) & Tile::PlayerMovable))
 				continue;
 
-			// FIXME: 因为不允许走回头路, 所以不能经过玩家已经在的位置
-			// if(crate_pos + direction == player_pos)
-			// 	continue;
-
-			// FIXME: 依然存在走回头路的问题
-			// TODO: 防止 came_from 形成闭环
-
 			for(auto pos = crate_pos + direction; !(at(pos) & (Tile::Unmovable | Tile::Crate | Tile::CrateMovable));
 			    pos += direction)
 			{
+				if(came_from.contains(pos))
+					continue;
+
+				// 防止 came_from 形成闭环
+				bool skip = false;
+				for(auto prev = crate_pos; came_from.contains(prev);)
+				{
+					prev = came_from[prev];
+					if (prev == pos)
+					{
+						skip = true;
+						break;
+					}
+				}
+				if(skip)
+					continue;
+
 				came_from[pos] = crate_pos;
 				at(pos) |= Tile::CrateMovable;
 
@@ -819,6 +827,13 @@ private:
 
 			metadata_.emplace(key, value);
 		}
+	}
+
+	sf::Vector2i get_player_direction() const
+	{
+		if(movements_.empty())
+			return {0, 1};
+		return movement_to_direction(rotate_movement(movements_.back(), rotation_));
 	}
 
 	char get_last_rotated_movement() const { return rotate_movement(movements_.back(), rotation_); }

@@ -31,7 +31,7 @@ public:
 		               "	solution TEXT,"
 		               "	date     DATE NOT NULL"
 		               ")");
-		database_.exec("CREATE TABLE IF NOT EXISTS tb_history ("
+		database_.exec("CREATE TABLE IF NOT EXISTS tb_session ("
 		               "	level_id  INTEGER UNIQUE,"
 		               "	movements TEXT,"
 		               "	datetime  DATETIME NOT NULL,"
@@ -44,7 +44,7 @@ public:
 	 */
 	void reset()
 	{
-		database_.exec("DROP TABLE IF EXISTS tb_level, tb_history");
+		database_.exec("DROP TABLE IF EXISTS tb_level, tb_session");
 		setup();
 	}
 
@@ -152,16 +152,29 @@ public:
 	/**
 	 * @brief 更新关卡历史移动.
 	 *
+	 * @param level_id 关卡 ID.
+	 */
+	bool update_history_movements(int level_id, const std::string& movements)
+	{
+		SQLite::Statement update_movements(database_, "UPDATE tb_session "
+		                                              "SET movements = ? "
+		                                              "WHERE level_id = ?");
+		update_movements.bind(1, movements);
+		update_movements.bind(2, level_id);
+		return update_movements.exec();
+	}
+
+	/**
+	 * @brief 更新关卡历史移动.
+	 *
 	 * @param level 关卡.
 	 */
 	bool update_history_movements(Level level)
 	{
-		SQLite::Statement update_movements(database_, "UPDATE tb_history "
+		SQLite::Statement update_movements(database_, "UPDATE tb_session "
 		                                              "SET movements = ? "
 		                                              "WHERE level_id = ?");
-		update_movements.bind(1, level.movements());
-		update_movements.bind(2, get_level_id(level).value());
-		return update_movements.exec();
+		return update_history_movements(get_level_id(level).value(), level.movements());
 	}
 
 	/**
@@ -181,7 +194,7 @@ public:
 	 */
 	bool upsert_level_history(int level_id)
 	{
-		SQLite::Statement upsert_history(database_, "INSERT OR IGNORE INTO tb_history(level_id, datetime) "
+		SQLite::Statement upsert_history(database_, "INSERT OR IGNORE INTO tb_session(level_id, datetime) "
 		                                            "VALUES(?, DATETIME('now')) "
 		                                            "ON CONFLICT(level_id) DO UPDATE SET datetime = DATETIME('now')");
 		upsert_history.bind(1, level_id);
@@ -193,7 +206,7 @@ public:
 	 */
 	std::optional<int> get_latest_level_id()
 	{
-		SQLite::Statement query_latest_history(database_, "SELECT level_id FROM tb_history "
+		SQLite::Statement query_latest_history(database_, "SELECT level_id FROM tb_session "
 		                                                  "ORDER BY datetime DESC "
 		                                                  "LIMIT 1");
 		if(!query_latest_history.executeStep())
@@ -208,7 +221,7 @@ public:
 	 */
 	std::string get_level_history_movements(const Level& level)
 	{
-		SQLite::Statement query_movements(database_, "SELECT movements FROM tb_history "
+		SQLite::Statement query_movements(database_, "SELECT movements FROM tb_session "
 		                                             "WHERE level_id = ?");
 		query_movements.bind(1, get_level_id(level).value());
 		if(!query_movements.executeStep())
