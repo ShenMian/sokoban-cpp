@@ -270,8 +270,7 @@ public:
 			{
 				sf::Sprite sprite;
 				sprite.setScale(scale, scale);
-				sprite.setOrigin(-offset);
-				sprite.setPosition(x * tile_size.x, y * tile_size.y);
+				sprite.setPosition(x * tile_size.x + offset.x, y * tile_size.y + offset.y);
 
 				auto tiles = at(x, y);
 
