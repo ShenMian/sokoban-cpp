@@ -351,7 +351,7 @@ private:
 				movements += 'r';
 			current_pos += direction;
 		}
-		level_.play(movements, std::chrono::milliseconds(100));
+		level_.play(movements, move_interval_);
 	}
 
 	void handle_keyboard_input()
@@ -410,14 +410,21 @@ private:
 				level_.reset();
 				std::this_thread::sleep_for(std::chrono::seconds(1));
 			}
-			level_.play(level_.metadata().at("answer"), std::chrono::milliseconds(200));
+			level_.play(level_.metadata().at("answer"), move_interval_);
 			keyboard_input_clock_.restart();
 		}
-		else if(sf::Keyboard::isKeyPressed(sf::Keyboard::LControl) &&
-		        sf::Keyboard::isKeyPressed(sf::Keyboard::V))
+		else if(sf::Keyboard::isKeyPressed(sf::Keyboard::LControl) && sf::Keyboard::isKeyPressed(sf::Keyboard::V))
 		{
 			level_ = import_level_from_clipboard().value();
 			database_.upsert_level_history(level_);
+			keyboard_input_clock_.restart();
+		}
+		else if(sf::Keyboard::isKeyPressed(sf::Keyboard::LControl) && sf::Keyboard::isKeyPressed(sf::Keyboard::I))
+		{
+			if(move_interval_ != std::chrono::milliseconds(0))
+				move_interval_ = std::chrono::milliseconds(0);
+			else
+				move_interval_ = std::chrono::milliseconds(200);
 			keyboard_input_clock_.restart();
 		}
 	}
@@ -451,6 +458,8 @@ private:
 
 	sf::Clock    keyboard_input_clock_, mouse_select_clock;
 	std::jthread input_thread_;
+
+	std::chrono::milliseconds move_interval_ = std::chrono::milliseconds(200);
 
 	sf::Vector2i                                   selected_crate_ = {-1, -1};
 	std::unordered_map<sf::Vector2i, sf::Vector2i> came_from_;
