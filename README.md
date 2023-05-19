@@ -6,16 +6,28 @@ A simple sokoban, using [SFML] framework.
 
 <p align="center"><img src="docs/screenshot.png" width=70%></p>
 
+## Features
+
+- Mouse control: move character and select & drop crates.
+- Undo/undo all.
+- Automatically save and restore session.
+- Autosave best solutions.
+- Save opened levels.
+- Show dead crates.
+- Freeze deadlocks detection.
+- Rotate level map.
+- Resize map to fit window.
+
 ## Keymap
 
-| Key                                        | Action                                                                 |
-| ------------------------------------------ | ---------------------------------------------------------------------- |
-| `W`/`A`/`S`/`D`/`Up`/`Down`/`Left`/`Right` | Move the character                                                     |
-| `Esc`                                      | Reload current level                                                   |
-| `BackSpace`                                | Single step undo                                                       |
-| `R`                                        | Rotate map clockwise                                                   |
-| `P`                                        | Demonstrate how to pass the level (if the level comes with the answer) |
-| `Ctrl` + `V`                               | Import level from clipboard                                            |
+| Key                                        | Action                      |
+| ------------------------------------------ | --------------------------- |
+| `W`/`A`/`S`/`D`/`Up`/`Down`/`Left`/`Right` | Move the character          |
+| `Esc`                                      | Reload current level        |
+| `BackSpace`                                | Single step undo            |
+| `R`                                        | Rotate map clockwise        |
+| `P`                                        | Replay solution             |
+| `Ctrl` + `V`                               | Import level from clipboard |
 
 ## Assets
 
