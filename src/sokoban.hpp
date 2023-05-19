@@ -38,9 +38,10 @@ public:
 
 )";
 		std::cout << R"(
-        1. Open the lastest level
+        1. Open the last session
         2. Open level by id
-        3. Import from file
+        3. Import from clipboard
+        4. Import from file
 
 )";
 
@@ -61,6 +62,12 @@ public:
 		}
 
 		case '3': {
+			level_ = import_level_from_clipboard().value();
+			database_.upsert_level_history(level_);
+			break;
+		}
+
+		case '4': {
 			std::filesystem::path path;
 			std::cout << "File path: ";
 			std::cin >> path;
@@ -75,7 +82,7 @@ public:
 
 		create_window();
 
-		load_latest_level();
+		load_latest_session();
 
 		input_thread_ = std::jthread([&](std::stop_token token) {
 			while(!token.stop_requested())
@@ -99,23 +106,8 @@ public:
 				database_.update_history_movements(level_);
 				std::this_thread::sleep_for(std::chrono::seconds(2));
 
-				// 加载下一个没有答案的关卡
-				auto id = database_.get_level_id(level_).value();
-				while(true)
-				{
-					auto level = database_.get_level_by_id(++id);
-					if(level.has_value() && !level.value().metadata().contains("answer"))
-					{
-						level_ = level.value();
-						break;
-					}
-				}
-				print_info();
+				load_next_unsolved_level();
 
-				database_.upsert_level_history(level_);
-				level_.play(database_.get_level_history_movements(level_));
-				if(level_.metadata().contains("title"))
-					window_.setTitle("Sokoban - " + level_.metadata().at("title"));
 			}
 		}
 		database_.update_history_movements(level_);
@@ -195,15 +187,47 @@ private:
 		preview.getTexture().copyToImage().saveToFile("D:/Users/sms/Desktop/level.png");
 	}
 
-	void load_latest_level()
+	void load_next_level()
 	{
-		sf::Clock clock;
-		level_ = database_.get_level_by_id(database_.get_latest_level_id().value_or(1)).value();
-		std::cout << "Load level: " << clock.getElapsedTime().asMicroseconds() << "us\n"; // TODO: performance test
+		const auto id = database_.get_level_id(level_).value();
+		level_        = database_.get_level_by_id(id + 1).value();
+	}
+
+	void load_prev_level()
+	{
+		const auto id = database_.get_level_id(level_).value();
+		level_        = database_.get_level_by_id(id - 1).value();
+	}
+
+	void load_next_unsolved_level()
+	{
+		auto id = database_.get_level_id(level_).value();
+		while(true)
+		{
+			auto level = database_.get_level_by_id(++id);
+			if(level.has_value() && !level.value().metadata().contains("answer"))
+			{
+				level_ = level.value();
+				break;
+			}
+		}
 
 		print_info();
 		if(level_.metadata().contains("title"))
 			window_.setTitle("Sokoban - " + level_.metadata().at("title"));
+
+		database_.upsert_level_history(level_);
+		level_.play(database_.get_level_history_movements(level_));
+	}
+
+	void load_latest_session()
+	{
+		level_ = database_.get_level_by_id(database_.get_latest_level_id().value_or(1)).value();
+
+		print_info();
+		if(level_.metadata().contains("title"))
+			window_.setTitle("Sokoban - " + level_.metadata().at("title"));
+
 		database_.upsert_level_history(level_);
 		level_.play(database_.get_level_history_movements(level_));
 	}
@@ -392,9 +416,8 @@ private:
 		else if(sf::Keyboard::isKeyPressed(sf::Keyboard::LControl) &&
 		        sf::Keyboard::isKeyPressed(sf::Keyboard::V))
 		{
-			const Level level = import_level_from_clipboard().value();
-			database_.upsert_level_history(level);
-			load_latest_level();
+			level_ = import_level_from_clipboard().value();
+			database_.upsert_level_history(level_);
 			keyboard_input_clock_.restart();
 		}
 	}

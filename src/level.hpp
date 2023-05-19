@@ -825,10 +825,8 @@ private:
 			const auto key   = to_lowercase(line.substr(0, it));
 			auto       value = line.substr(it + 1);
 
-			while(value.starts_with(" "))
-				value.erase(0, 1);
-			while(value.ends_with(" "))
-				value.pop_back();
+			value.erase(value.find_last_not_of(' ') + 1);
+			value.erase(0, value.find_first_not_of(' '));
 
 			if(key == "comment")
 			{
