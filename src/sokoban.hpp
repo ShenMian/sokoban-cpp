@@ -263,7 +263,8 @@ private:
 				window_.close();
 			}
 			if(event.type == sf::Event::Resized)
-				window_.setView(sf::View(sf::FloatRect(0, 0, event.size.width, event.size.height)));
+				window_.setView(sf::View(sf::FloatRect(0.f, 0.f, static_cast<float>(event.size.width),
+				                                       static_cast<float>(event.size.height))));
 		}
 	}
 
