@@ -8,13 +8,12 @@ A simple sokoban, using [SFML] framework.
 
 ## Features
 
-- Mouse control: move character and select & drop crates.
+- Mouse control: move character, select & drop crates.
 - Undo/undo all.
 - Automatically save and restore session.
 - Autosave best solutions.
 - Save opened levels.
-- Show dead crates.
-- Freeze deadlocks detection.
+- Show dead crates: freeze deadlocks detection.
 - Rotate level map.
 - Resize map to fit window.
 
