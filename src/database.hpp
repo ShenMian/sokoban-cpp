@@ -55,15 +55,21 @@ public:
 	 */
 	void import_level(const Level& level)
 	{
-		SQLite::Statement upsert_level(database_, "INSERT OR IGNORE INTO tb_level(title, author, map, crc32, date) "
+		SQLite::Statement query_level(database_, "SELECT * FROM tb_level "
+		                                         "WHERE crc32 = ?");
+		query_level.bind(1, level.crc32());
+		if(query_level.executeStep())
+			return;
+
+		SQLite::Statement insert_level(database_, "INSERT INTO tb_level(title, author, map, crc32, date) "
 		                                          "VALUES (?, ?, ?, ?, DATE('now'))");
 		if(level.metadata().contains("title"))
-			upsert_level.bind(1, level.metadata().at("title"));
+			insert_level.bind(1, level.metadata().at("title"));
 		if(level.metadata().contains("author"))
-			upsert_level.bind(2, level.metadata().at("author"));
-		upsert_level.bind(3, level.ascii_map());
-		upsert_level.bind(4, level.crc32());
-		upsert_level.exec();
+			insert_level.bind(2, level.metadata().at("author"));
+		insert_level.bind(3, level.ascii_map());
+		insert_level.bind(4, level.crc32());
+		insert_level.exec();
 	}
 
 	/**
