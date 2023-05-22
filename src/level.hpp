@@ -643,7 +643,7 @@ public:
 				for(auto prev = crate_pos; came_from.contains(prev);)
 				{
 					prev = came_from[prev];
-					if (prev == pos)
+					if(prev == pos)
 					{
 						skip = true;
 						break;

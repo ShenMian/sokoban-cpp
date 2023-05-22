@@ -5,9 +5,9 @@
 
 #include "level.hpp"
 #include <SQLiteCpp/Database.h>
+#include <cassert>
 #include <filesystem>
 #include <optional>
-#include <cassert>
 
 class Database
 {
@@ -188,10 +188,7 @@ public:
 	 *
 	 * @param level 关卡.
 	 */
-	bool upsert_level_history(const Level& level)
-	{
-		return upsert_level_history(get_level_id(level).value());
-	}
+	bool upsert_level_history(const Level& level) { return upsert_level_history(get_level_id(level).value()); }
 
 	/**
 	 * @brief 添加关卡会话历史.

@@ -508,6 +508,4 @@ private:
 	std::unordered_map<sf::Vector2i, sf::Vector2i> came_from_;
 
 	Database database_;
-
-	// std::vector<sf::Keyboard::Key, sf::Clock>> key_pressed_;
 };

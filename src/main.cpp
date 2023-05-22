@@ -3,9 +3,6 @@
 
 #include "sokoban.hpp"
 
-#include "crc32.hpp"
-#include "level.hpp"
-
 int main(int argc, char* argv[])
 {
 	try
