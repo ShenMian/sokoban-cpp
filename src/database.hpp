@@ -32,9 +32,9 @@ public:
 		               "	date     DATE NOT NULL"
 		               ")");
 		database_.exec("CREATE TABLE IF NOT EXISTS tb_session ("
-		               "	level_id  INTEGER UNIQUE,"
-		               "	movements TEXT,"
-		               "	datetime  DATETIME NOT NULL,"
+		               "	level_id INTEGER UNIQUE,"
+		               "	movement TEXT,"
+		               "	datetime DATETIME NOT NULL,"
 		               "	FOREIGN KEY (level_id) REFERENCES tb_level(id)"
 		               ")");
 	}
@@ -156,43 +156,43 @@ public:
 	}
 
 	/**
-	 * @brief 更新关卡会话历史移动.
+	 * @brief 更新关卡会话移动.
 	 *
 	 * @param level_id 关卡 ID.
 	 */
-	bool update_history_movements(int level_id, const std::string& movements)
+	bool update_session_movement(int level_id, const std::string& movement)
 	{
 		SQLite::Statement update_movements(database_, "UPDATE tb_session "
-		                                              "SET movements = ? "
+		                                              "SET movement = ? "
 		                                              "WHERE level_id = ?");
-		update_movements.bind(1, movements);
+		update_movements.bind(1, movement);
 		update_movements.bind(2, level_id);
 		return update_movements.exec();
 	}
 
 	/**
-	 * @brief 更新关卡会话历史移动.
+	 * @brief 更新关卡会话移动.
 	 *
 	 * @param level 关卡.
 	 */
-	bool update_history_movements(Level level)
+	bool update_session_movement(Level level)
 	{
-		return update_history_movements(get_level_id(level).value(), level.movement());
+		return update_session_movement(get_level_id(level).value(), level.movement());
 	}
 
 	/**
-	 * @brief 添加关卡会话历史.
+	 * @brief 添加关卡会话.
 	 *
 	 * @param level 关卡.
 	 */
-	bool upsert_level_history(const Level& level) { return upsert_level_history(get_level_id(level).value()); }
+	bool upsert_level_session(const Level& level) { return upsert_level_session(get_level_id(level).value()); }
 
 	/**
-	 * @brief 添加关卡会话历史.
+	 * @brief 添加关卡会话.
 	 *
 	 * @param level_id 关卡 ID.
 	 */
-	bool upsert_level_history(int level_id)
+	bool upsert_level_session(int level_id)
 	{
 		SQLite::Statement upsert_history(database_, "INSERT OR IGNORE INTO tb_session(level_id, datetime) "
 		                                            "VALUES(?, DATETIME('now')) "
@@ -215,13 +215,13 @@ public:
 	}
 
 	/**
-	 * @brief 获取关卡会话历史移动.
+	 * @brief 获取关卡会话移动.
 	 *
 	 * @param level 关卡.
 	 */
-	std::string get_level_history_movements(const Level& level)
+	std::string get_level_session_movements(const Level& level)
 	{
-		SQLite::Statement query_movements(database_, "SELECT movements FROM tb_session "
+		SQLite::Statement query_movements(database_, "SELECT movement FROM tb_session "
 		                                             "WHERE level_id = ?");
 		query_movements.bind(1, get_level_id(level).value());
 		if(!query_movements.executeStep())
