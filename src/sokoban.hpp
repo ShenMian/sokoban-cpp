@@ -95,16 +95,16 @@ public:
 
 			render();
 
-			if(!level_.movements().empty() && std::isupper(level_.movements().back()) && level_.passed())
+			if(!level_.movements().empty() && std::isupper(level_.movements().back().back()) && level_.passed())
 			{
 				render();
 
 				passed_sound_.play();
+				std::this_thread::sleep_for(std::chrono::seconds(2));
+
 				print_result();
 				database_.update_level_solution(level_);
-				level_.reset();
-				database_.update_history_movements(level_);
-				std::this_thread::sleep_for(std::chrono::seconds(2));
+				database_.update_history_movements(database_.get_level_id(level_).value(), "");
 
 				load_next_unsolved_level();
 			}
@@ -244,7 +244,6 @@ private:
 	void create_window()
 	{
 		const auto mode = sf::VideoMode::getDesktopMode();
-		// window_.create(sf::VideoMode{mode.width / 2, mode.height / 2}, "Sokoban", sf::Style::Close);
 		window_.create(sf::VideoMode{mode.width / 2, mode.height / 2}, "Sokoban");
 		sf::Image icon;
 		icon.loadFromFile("img/crate.png");
@@ -369,22 +368,22 @@ private:
 		// 反着写是因为起始点可以为箱子, 但结束点不能
 		auto        path        = level_.find_path(pos, level_.player_position(), border_tiles);
 		auto        current_pos = level_.player_position();
-		std::string movements;
+		std::string movement;
 		while(!path.empty())
 		{
 			const auto direction = path.back() - current_pos;
 			path.pop_back();
 			if(direction == sf::Vector2i(0, -1))
-				movements += 'u';
+				movement += 'u';
 			else if(direction == sf::Vector2i(0, 1))
-				movements += 'd';
+				movement += 'd';
 			else if(direction == sf::Vector2i(-1, 0))
-				movements += 'l';
+				movement += 'l';
 			else if(direction == sf::Vector2i(1, 0))
-				movements += 'r';
+				movement += 'r';
 			current_pos += direction;
 		}
-		level_.play(movements, move_interval_);
+		level_.play(movement, move_interval_);
 	}
 
 	void handle_keyboard_input()
@@ -415,7 +414,7 @@ private:
 			level_.play("r");
 			keyboard_input_clock_.restart();
 		}
-		else if(sf::Keyboard::isKeyPressed(sf::Keyboard::BackSpace))
+		else if(sf::Keyboard::isKeyPressed(sf::Keyboard::Backspace))
 		{
 			level_.undo();
 			selected_crate_ = {-1, -1};
@@ -446,14 +445,14 @@ private:
 		}
 		else if(sf::Keyboard::isKeyPressed(sf::Keyboard::P))
 		{
-			if(!level_.metadata().contains("answer"))
+			if(!level_.metadata().contains("solution"))
 				return;
 			if(!level_.movements().empty())
 			{
 				level_.reset();
 				std::this_thread::sleep_for(std::chrono::seconds(1));
 			}
-			level_.play(level_.metadata().at("answer"), move_interval_);
+			level_.play(level_.metadata().at("solution"), move_interval_);
 			keyboard_input_clock_.restart();
 		}
 		else if(sf::Keyboard::isKeyPressed(sf::Keyboard::LControl) && sf::Keyboard::isKeyPressed(sf::Keyboard::V))
@@ -467,7 +466,7 @@ private:
 			if(move_interval_ != std::chrono::milliseconds(0))
 				move_interval_ = std::chrono::milliseconds(0);
 			else
-				move_interval_ = std::chrono::milliseconds(200);
+				move_interval_ = std::chrono::milliseconds(150);
 			keyboard_input_clock_.restart();
 		}
 	}
@@ -482,12 +481,11 @@ private:
 
 	void print_result()
 	{
-		const auto movements = level_.movements();
-		std::cout << "Moves: " << movements.size() << '\n';
+		const auto movement = level_.movement();
+		std::cout << "Moves: " << movement.size() << '\n';
 		std::cout << "Pushs: "
-		          << std::count_if(movements.begin(), movements.end(), [](auto c) { return std::isupper(c); }) << '\n';
-		std::cout << "LURD : " << movements << '\n';
-		std::cout << '\n';
+		          << std::count_if(movement.begin(), movement.end(), [](auto c) { return std::isupper(c); }) << '\n';
+		std::cout << "LURD : " << movement << '\n' << '\n';
 	}
 
 	Level level_;
@@ -502,7 +500,7 @@ private:
 	sf::Clock    keyboard_input_clock_, mouse_select_clock_;
 	std::jthread input_thread_;
 
-	std::chrono::milliseconds move_interval_ = std::chrono::milliseconds(200);
+	std::chrono::milliseconds move_interval_ = std::chrono::milliseconds(100);
 
 	sf::Vector2i                                   selected_crate_ = {-1, -1};
 	std::unordered_map<sf::Vector2i, sf::Vector2i> came_from_;

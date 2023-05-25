@@ -153,15 +153,17 @@ public:
 	 * @param movements LURD 格式移动记录.
 	 * @param interval  移动间隔.
 	 */
-	void play(const std::string& movements, std::chrono::milliseconds interval = std::chrono::milliseconds(0))
+	void play(std::string movement, std::chrono::milliseconds interval = std::chrono::milliseconds(0))
 	{
-		for(const auto movement : movements)
+		if(movement.empty())
+			return;
+		for(auto& move : movement)
 		{
-			const auto direction       = movement_to_direction(movement);
+			const auto direction       = movement_to_direction(move);
 			const auto player_next_pos = player_position_ + direction;
+			player_direction_          = direction;
 			if(at(player_next_pos) & Tile::Wall)
 				continue;
-
 			if(at(player_next_pos) & Tile::Crate)
 			{
 				const auto crate_next_pos = player_next_pos + direction;
@@ -178,7 +180,7 @@ public:
 				at(player_next_pos) |= Tile::Player;
 				player_position_ = player_next_pos;
 
-				movements_ += rotate_movement(std::toupper(movement), -rotation_);
+				move = rotate_movement(std::toupper(move), -rotation_);
 			}
 			else
 			{
@@ -186,10 +188,11 @@ public:
 				at(player_next_pos) |= Tile::Player;
 				player_position_ = player_next_pos;
 
-				movements_ += rotate_movement(std::tolower(movement), -rotation_);
+				move = rotate_movement(std::tolower(move), -rotation_);
 			}
 			std::this_thread::sleep_for(interval);
 		}
+		movements_.emplace_back(movement);
 	}
 
 	/**
@@ -200,23 +203,29 @@ public:
 		if(movements_.empty())
 			return;
 
-		const auto last_direction = movement_to_direction(get_last_rotated_movement());
-		if(std::isupper(movements_.back()))
-		{
-			// 拉箱子
-			const auto crate_pos = player_position_ + last_direction;
-			at(crate_pos) &= ~Tile::Crate;
-			at(player_position_) |= Tile::Crate;
-			crate_positions_.erase(crate_pos);
-			crate_positions_.insert(player_position_);
-			refresh_deadlocks();
-		}
-		const auto player_last_pos = player_position_ - last_direction;
-		at(player_position_) &= ~Tile::Player;
-		at(player_last_pos) |= Tile::Player;
-		player_position_ = player_last_pos;
-
+		auto movement = movements_.back();
 		movements_.pop_back();
+
+		std::reverse(movement.begin(), movement.end());
+		for(const auto move : movement)
+		{
+			const auto last_direction = movement_to_direction(rotate_movement(move, rotation_));
+			player_direction_         = last_direction;
+			if(std::isupper(move))
+			{
+				// 拉箱子
+				const auto crate_pos = player_position_ + last_direction;
+				at(crate_pos) &= ~Tile::Crate;
+				at(player_position_) |= Tile::Crate;
+				crate_positions_.erase(crate_pos);
+				crate_positions_.insert(player_position_);
+				refresh_deadlocks();
+			}
+			const auto player_last_pos = player_position_ - last_direction;
+			at(player_position_) &= ~Tile::Player;
+			at(player_last_pos) |= Tile::Player;
+			player_position_ = player_last_pos;
+		}
 	}
 
 	/**
@@ -225,10 +234,11 @@ public:
 	void reset()
 	{
 		clear(Tile::Deadlocked | Tile::PlayerMovable | Tile::CrateMovable);
-		while(!movements_.empty())
+		while (!movements_.empty())
 			undo();
 		while(rotation_)
 			rotate();
+		player_direction_ = {0, 1};
 	}
 
 	/**
@@ -247,7 +257,7 @@ public:
 	 */
 	void render(sf::RenderTarget& target, const Material& material) const
 	{
-		const sf::Vector2i player_dir = get_player_direction();
+		const sf::Vector2i player_dir = rotate_direction(player_direction_, rotation_);
 
 		// TODO: 需要重构, 可读性较差, 非必要的重复计算
 		const auto target_size   = sf::Vector2f(target.getSize());
@@ -511,12 +521,14 @@ public:
 	const auto&         movements() const noexcept { return movements_; }
 	const auto&         player_position() const noexcept { return player_position_; }
 
+	auto movement() const noexcept { return std::accumulate(movements_.cbegin(), movements_.cend(), std::string()); }
+
 	uint32_t crc32() const noexcept
 	{
-		// TODO: 计算旋转和镜像共 8 种地图变种的 CRC32
-		Level    level(*this);
-		uint32_t crc = std::numeric_limits<uint32_t>::max();
+		Level level(*this);
 		level.reset();
+		uint32_t crc = std::numeric_limits<uint32_t>::max();
+		// TODO: 计算旋转和镜像共 8 种地图变种的 CRC32
 		for(int i = 0; i < 4; i++)
 		{
 			crc = std::min(::crc32(0, level.map().data(), level.map().size()), crc);
@@ -841,15 +853,6 @@ private:
 		}
 	}
 
-	sf::Vector2i get_player_direction() const
-	{
-		if(movements_.empty())
-			return {0, 1};
-		return movement_to_direction(rotate_movement(movements_.back(), rotation_));
-	}
-
-	char get_last_rotated_movement() const { return rotate_movement(movements_.back(), rotation_); }
-
 	/**
 	 * @brief 检查箱子死否一定锁死.
 	 *
@@ -956,10 +959,12 @@ private:
 	std::vector<uint8_t>                         map_;
 	std::unordered_map<std::string, std::string> metadata_;
 
+	sf::Vector2i                     player_direction_ = {0, 1};
 	sf::Vector2i                     player_position_;
 	std::unordered_set<sf::Vector2i> crate_positions_;
 	std::unordered_set<sf::Vector2i> target_positions_;
-	std::string                      movements_;
+
+	std::vector<std::string> movements_;
 
 	int  rotation_ = 0;
 	bool flipped_  = false;

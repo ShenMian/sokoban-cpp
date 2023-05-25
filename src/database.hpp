@@ -152,7 +152,7 @@ public:
 	bool update_level_solution(Level level)
 	{
 		assert(level.passed());
-		return update_level_solution(get_level_id(level).value(), level.movements());
+		return update_level_solution(get_level_id(level).value(), level.movement());
 	}
 
 	/**
@@ -177,10 +177,7 @@ public:
 	 */
 	bool update_history_movements(Level level)
 	{
-		SQLite::Statement update_movements(database_, "UPDATE tb_session "
-		                                              "SET movements = ? "
-		                                              "WHERE level_id = ?");
-		return update_history_movements(get_level_id(level).value(), level.movements());
+		return update_history_movements(get_level_id(level).value(), level.movement());
 	}
 
 	/**
