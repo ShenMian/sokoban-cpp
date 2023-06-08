@@ -1,4 +1,8 @@
 /target
-/.cache
 /build
+
+/.cache
+CMakeSettings.json
 compile_commands.json
+
+/.vs
