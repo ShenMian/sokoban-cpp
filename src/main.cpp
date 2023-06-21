@@ -16,6 +16,7 @@ int main(int argc, char* argv[])
 		std::cerr << "Press enter to exit...\n";
 		std::string line;
 		std::getline(std::cin, line);
+		std::getline(std::cin, line);
 		return 1;
 	}
 

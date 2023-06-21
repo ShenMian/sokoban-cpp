@@ -175,7 +175,7 @@ public:
 	 *
 	 * @param level 关卡.
 	 */
-	bool update_session_movement(Level level)
+	bool update_session_movement(const Level& level)
 	{
 		return update_session_movement(get_level_id(level).value(), level.movement());
 	}
