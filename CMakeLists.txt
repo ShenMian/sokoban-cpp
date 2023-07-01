@@ -3,7 +3,7 @@
 
 cmake_minimum_required(VERSION 3.12)
 
-project(sokoban CXX)
+project(sokoban)
 
 set(BUILD_SHARED_LIBS FALSE)
 
