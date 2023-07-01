@@ -10,9 +10,18 @@ int main(int argc, char* argv[])
 		Sokoban sokoban;
 		sokoban.run(argc, argv);
 	}
-	catch(std::runtime_error& e)
+	catch(const std::runtime_error& e)
 	{
-		std::cerr << "ERROR: " << e.what() << "\n";
+		std::cerr << "Exception: " << e.what() << "\n";
+		std::cerr << "Press enter to exit...\n";
+		std::string line;
+		std::getline(std::cin, line);
+		std::getline(std::cin, line);
+		return 1;
+	}
+	catch(...)
+	{
+		std::cerr << "Unknown exception\n";
 		std::cerr << "Press enter to exit...\n";
 		std::string line;
 		std::getline(std::cin, line);

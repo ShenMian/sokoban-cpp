@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <cstdint>
+
 enum Tile : uint8_t
 {
 	Floor  = 1 << 0,
