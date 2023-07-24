@@ -22,7 +22,7 @@ FetchContent_MakeAvailable(sqlite3)
 include(FetchContent)
 FetchContent_Declare(SQLiteCpp
     GIT_REPOSITORY https://github.com/SRombauts/SQLiteCpp.git
-    GIT_TAG 3.2.1)
+    GIT_TAG 3.3.0)
 FetchContent_MakeAvailable(SQLiteCpp)
 
 add_executable(${PROJECT_NAME})
