@@ -21,13 +21,10 @@ public:
 		load_sounds();
 		background_music_.play();
 
-		database_.import_levels_from_file(std::filesystem::path(argv[0]).parent_path() / "level" / "default.xsb");
-		database_.import_levels_from_file(std::filesystem::path(argv[0]).parent_path() / "level" / "box_world.xsb");
+		database_.import_levels_from_file("level/default.xsb");
+		database_.import_levels_from_file("level/box_world.xsb");
 
-		/*
-		preview_levels(
-		    database_.import_levels_from_file(std::filesystem::path(argv[0]).parent_path() / "level" / "default.xsb"));
-		*/
+		// preview_levels(database_.import_levels_from_file("level/default.xsb"));
 
 		std::cout << R"(
    _____       __         __
