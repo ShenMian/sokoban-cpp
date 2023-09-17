@@ -27,7 +27,7 @@ FetchContent_MakeAvailable(SQLiteCpp)
 
 add_executable(${PROJECT_NAME})
 target_sources(${PROJECT_NAME} PRIVATE src/main.cpp)
-target_link_libraries(${PROJECT_NAME} PRIVATE sfml-graphics sfml-audio SQLite3 SQLiteCpp)
+target_link_libraries(${PROJECT_NAME} PRIVATE sfml-graphics sfml-audio sqlite3 SQLiteCpp)
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_20)
 
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/asset/level/
