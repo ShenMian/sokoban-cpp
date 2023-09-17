@@ -14,12 +14,6 @@ FetchContent_Declare(SFML
 FetchContent_MakeAvailable(SFML)
 
 include(FetchContent)
-FetchContent_Declare(sqlite3
-    GIT_REPOSITORY https://github.com/rhuijben/sqlite-amalgamation.git
-    GIT_TAG 3.40.1)
-FetchContent_MakeAvailable(sqlite3)
-
-include(FetchContent)
 FetchContent_Declare(SQLiteCpp
     GIT_REPOSITORY https://github.com/SRombauts/SQLiteCpp.git
     GIT_TAG 3.3.1)
@@ -27,7 +21,7 @@ FetchContent_MakeAvailable(SQLiteCpp)
 
 add_executable(${PROJECT_NAME})
 target_sources(${PROJECT_NAME} PRIVATE src/main.cpp)
-target_link_libraries(${PROJECT_NAME} PRIVATE sfml-graphics sfml-audio sqlite3 SQLiteCpp)
+target_link_libraries(${PROJECT_NAME} PRIVATE sfml-graphics sfml-audio SQLiteCpp)
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_20)
 
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/asset/level/
