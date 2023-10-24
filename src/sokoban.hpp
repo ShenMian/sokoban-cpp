@@ -27,18 +27,31 @@ public:
 		// preview_levels(database_.import_levels_from_file("level/default.xsb"));
 
 		std::cout << R"(
-   _____       __         __
-  / ___/____  / /______  / /_  ____ _____
-  \__ \/ __ \/ //_/ __ \/ __ \/ __ `/ __ \
- ___/ / /_/ / ,< / /_/ / /_/ / /_/ / / / /
-/____/\____/_/|_|\____/_.___/\__,_/_/ /_/
+           _____       __         __
+          / ___/____  / /______  / /_  ____ _____
+          \__ \/ __ \/ //_/ __ \/ __ \/ __ `/ __ \
+         ___/ / /_/ / ,< / /_/ / /_/ / /_/ / / / /
+        /____/\____/_/|_|\____/_.___/\__,_/_/ /_/
+
+| Key                | Action                            |
+| -------------------| --------------------------------- |
+| W/A/S/D            | Move the character                |
+| Up/Down/Left/Right | Move the character                |
+| H/J/K/L            | Move the character                |
+| Esc                | Reload current level              |
+| BackSpace          | Single step undo                  |
+| R                  | Rotate map clockwise              |
+| -/=                | Switch to the previous/next level |
+| P                  | Replay solution                   |
+| Ctrl + I           | Switch instant move               |
+| Ctrl + V           | Import level from clipboard       |
 
 )";
 		std::cout << R"(
-        1. Open the last session
-        2. Open level by id
-        3. Import from clipboard
-        4. Import from file
+                 1. Open the last session
+                 2. Open level by id
+                 3. Import from clipboard
+                 4. Import from file
 
 )";
 
