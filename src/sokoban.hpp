@@ -1,6 +1,8 @@
 // Copyright 2023 ShenMian
 // License(Apache-2.0)
 
+#pragma once
+
 #include "database.hpp"
 #include "level.hpp"
 #include "material.hpp"
@@ -94,7 +96,7 @@ public:
 
 		load_latest_session();
 
-		input_thread_ = std::jthread([&](std::stop_token token) {
+		input_thread_ = std::jthread([&](const std::stop_token& token) {
 			while(!token.stop_requested())
 				handle_input();
 		});
@@ -205,7 +207,7 @@ private:
 	void load_prev_level()
 	{
 		const auto id     = database_.get_level_id(level_).value();
-		auto       result = database_.get_level_by_id(id - 1);
+		const auto result = database_.get_level_by_id(id - 1);
 		if(!result.has_value())
 			return;
 		level_ = result.value();
@@ -223,8 +225,7 @@ private:
 		auto id = database_.get_level_id(level_).value();
 		while(true)
 		{
-			auto level = database_.get_level_by_id(++id);
-			if(level.has_value() && !level.value().metadata().contains("answer"))
+			if(auto level = database_.get_level_by_id(++id); level.has_value() && !level.value().metadata().contains("answer"))
 			{
 				level_ = level.value();
 				break;

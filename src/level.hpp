@@ -38,11 +38,11 @@ inline char direction_to_movement(const sf::Vector2i& dir)
 {
 	if(dir == sf::Vector2i(0, -1))
 		return 'u';
-	else if(dir == sf::Vector2i(0, 1))
+	if(dir == sf::Vector2i(0, 1))
 		return 'd';
-	else if(dir == sf::Vector2i(-1, 0))
+	if(dir == sf::Vector2i(-1, 0))
 		return 'l';
-	else if(dir == sf::Vector2i(1, 0))
+	if(dir == sf::Vector2i(1, 0))
 		return 'r';
 	throw std::invalid_argument("invalid direction");
 }
@@ -62,8 +62,10 @@ inline sf::Vector2i movement_to_direction(char move)
 
 	case 'r':
 		return {1, 0};
+
+	default:
+		throw std::invalid_argument("invalid movement");
 	}
-	throw std::invalid_argument("invalid movement");
 }
 
 inline sf::Vector2i rotate_direction(sf::Vector2i dir, int rotation)
@@ -109,7 +111,7 @@ public:
 			if(line.front() == ';')
 				continue;
 
-			if(line.find(":") != std::string::npos)
+			if(line.find(':') != std::string::npos)
 			{
 				if(to_lowercase(line.substr(0, 8)) == "comment:")
 				{
@@ -137,7 +139,7 @@ public:
 	/**
 	 * @brief 构造函数.
 	 *
-	 * @param ascii_map      XSB 格式地图数据.
+	 * @param map      XSB 格式地图数据.
 	 * @param size     地图大小.
 	 * @param metadata XSB 格式元数据.
 	 */
@@ -150,8 +152,8 @@ public:
 	/**
 	 * @brief 移动角色.
 	 *
-	 * @param movements LURD 格式移动记录.
-	 * @param interval  移动间隔.
+	 * @param movement LURD 格式移动记录.
+	 * @param interval 移动间隔.
 	 */
 	void play(std::string movement, std::chrono::milliseconds interval = std::chrono::milliseconds(0))
 	{
@@ -338,14 +340,16 @@ public:
 
 	void transpose()
 	{
-		std::vector<uint8_t> temp(map_.size());
-		for(int n = 0; n < size().x * size().y; n++)
 		{
-			const int i = n / size().y;
-			const int j = n % size().y;
-			temp[n]     = map_[size().x * j + i];
+			std::vector<uint8_t> temp(map_.size());
+			for(int n = 0; n < size().x * size().y; n++)
+			{
+				const int i = n / size().y;
+				const int j = n % size().y;
+				temp[n]     = map_[size().x * j + i];
+			}
+			map_ = temp;
 		}
-		map_ = temp;
 
 		auto transpose = [](auto p) { return sf::Vector2i(p.y, p.x); };
 
@@ -432,9 +436,9 @@ public:
 			                 std::pow(static_cast<long>(a.y) - static_cast<long>(b.y), 2));
 		};
 
-		std::priority_queue<Node, std::vector<Node>, std::greater<Node>> queue;
-		std::unordered_map<sf::Vector2i, sf::Vector2i>                   came_from;
-		std::unordered_map<sf::Vector2i, int>                            cost;
+		std::priority_queue<Node, std::vector<Node>, std::greater<>> queue;
+		std::unordered_map<sf::Vector2i, sf::Vector2i>               came_from;
+		std::unordered_map<sf::Vector2i, int>                        cost;
 
 		queue.push({start, 0});
 		cost[start] = 0;
@@ -474,11 +478,11 @@ public:
 			it = came_from.find(it->second);
 		}
 		path.emplace_back(it->second);
-		std::reverse(path.begin(), path.end());
+		std::ranges::reverse(path);
 		return path;
 	}
 
-	sf::Vector2i to_map_position(sf::Vector2i pos, const sf::RenderWindow& window, const Material& material)
+	sf::Vector2i to_map_position(sf::Vector2i pos, const sf::RenderWindow& window, const Material& material) const
 	{
 		// TODO: 需要重构, 可读性较差, 非必要的重复计算
 		const auto window_size   = sf::Vector2f(window.getSize());
@@ -601,8 +605,7 @@ public:
 			const sf::Vector2i directions[] = {{0, 1}, {0, -1}, {1, 0}, {-1, 0}};
 			for(const auto offset : directions)
 			{
-				const auto new_pos = pos + offset;
-				if(!(at(new_pos) & (border | value)) && !visited[new_pos.y * size().x + new_pos.x])
+				if(const auto new_pos = pos + offset; !(at(new_pos) & (border | value)) && !visited[new_pos.y * size().x + new_pos.x])
 				{
 					vector.emplace_back(new_pos);
 					visited[new_pos.y * size().x + new_pos.x] = true;
@@ -745,7 +748,7 @@ private:
 	/**
 	 * @brief 解析地图.
 	 *
-	 * @param ascii_map XSB 格式地图数据.
+	 * @param map XSB 格式地图数据.
 	 */
 	void parse_map(const std::string& map, const sf::Vector2i& size)
 	{
@@ -816,14 +819,14 @@ private:
 	/**
 	 * @brief 解析元数据.
 	 *
-	 * @param data XSB 格式元数据.
+	 * @param metadata XSB 格式元数据.
 	 */
 	void parse_metadata(const std::string& metadata)
 	{
 		std::istringstream stream(metadata);
 		for(std::string line; std::getline(stream, line);)
 		{
-			const auto it = line.find(":");
+			const auto it = line.find(':');
 			assert(it != std::string::npos);
 
 			auto to_lowercase = [](auto str) {

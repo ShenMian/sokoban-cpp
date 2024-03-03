@@ -103,7 +103,7 @@ public:
 	/**
 	 * @brief 通过 ID 获取关卡.
 	 *
-	 * @param level 关卡.
+	 * @param id 关卡 ID.
 	 */
 	std::optional<Level> get_level_by_id(int id)
 	{
@@ -149,7 +149,7 @@ public:
 	 *
 	 * @param level 已通关的关卡.
 	 */
-	bool update_level_solution(Level level)
+	bool update_level_solution(const Level& level)
 	{
 		assert(level.passed());
 		return update_level_solution(get_level_id(level).value(), level.movement());
