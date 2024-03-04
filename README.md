@@ -1,6 +1,6 @@
-# Sokoban
+# sokoban-cpp
 
-[![CodeFactor](https://www.codefactor.io/repository/github/shenmian/sokoban/badge)](https://www.codefactor.io/repository/github/shenmian/sokoban)
+[![CodeFactor](https://www.codefactor.io/repository/github/shenmian/sokoban-cpp/badge)](https://www.codefactor.io/repository/github/shenmian/sokoban-cpp)
 
 A simple sokoban, using [SFML] framework.  
 
