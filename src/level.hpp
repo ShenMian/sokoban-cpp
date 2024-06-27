@@ -25,7 +25,7 @@
 
 template<class T>
 struct std::hash<sf::Vector2<T>> {
-    std::size_t operator()(const sf::Vector2<T>& v) const {
+    auto operator()(const sf::Vector2<T>& v) const -> std::size_t {
         std::size_t tmp0 = std::hash<T>()(v.x);
         const std::size_t tmp1 = std::hash<T>()(v.y);
         tmp0 ^= tmp1 + 0x9e3779b9 + (tmp0 << 6) + (tmp0 >> 2);
@@ -33,19 +33,23 @@ struct std::hash<sf::Vector2<T>> {
     }
 };
 
-inline char direction_to_movement(const sf::Vector2i& dir) {
-    if (dir == sf::Vector2i(0, -1))
+inline auto direction_to_movement(const sf::Vector2i& dir) -> char {
+    if (dir == sf::Vector2i(0, -1)) {
         return 'u';
-    if (dir == sf::Vector2i(0, 1))
+    }
+    if (dir == sf::Vector2i(0, 1)) {
         return 'd';
-    if (dir == sf::Vector2i(-1, 0))
+    }
+    if (dir == sf::Vector2i(-1, 0)) {
         return 'l';
-    if (dir == sf::Vector2i(1, 0))
+    }
+    if (dir == sf::Vector2i(1, 0)) {
         return 'r';
+    }
     throw std::invalid_argument("invalid direction");
 }
 
-inline sf::Vector2i movement_to_direction(char move) {
+inline auto movement_to_direction(char move) -> sf::Vector2i {
     switch (std::tolower(move)) {
         case 'u':
             return {0, -1};
@@ -64,25 +68,28 @@ inline sf::Vector2i movement_to_direction(char move) {
     }
 }
 
-inline sf::Vector2i rotate_direction(sf::Vector2i dir, int rotation) {
-    if (rotation > 0)
+inline auto rotate_direction(sf::Vector2i dir, int rotation) -> sf::Vector2i {
+    if (rotation > 0) {
         for (int i = 0; i < rotation; i++)
             dir = {-dir.y, dir.x};
-    else
-        for (int i = 0; i < std::abs(rotation); i++)
+    } else {
+        for (int i = 0; i < std::abs(rotation); i++) {
             dir = {dir.y, -dir.x};
+        }
+    }
     return dir;
 }
 
-inline char rotate_movement(char move, int rotation) {
-    if (std::islower(move))
+inline auto rotate_movement(char move, int rotation) -> char {
+    if (std::islower(move)) {
         return direction_to_movement(
             rotate_direction(movement_to_direction(move), rotation)
         );
-    else
+    } else {
         return std::toupper(direction_to_movement(
             rotate_direction(movement_to_direction(move), rotation)
         ));
+    }
 }
 
 class Level {
@@ -105,16 +112,18 @@ class Level {
 
         std::istringstream stream(data);
         for (std::string line; std::getline(stream, line);) {
-            if (line.front() == ';')
+            if (line.front() == ';') {
                 continue;
+            }
 
             if (line.find(':') != std::string::npos) {
                 if (to_lowercase(line.substr(0, 8)) == "comment:") {
                     do {
                         metadata += line + '\n';
-                        if (!stream)
+                        if (!stream) {
                             throw std::runtime_error("unexpected end of stream"
                             );
+                        }
                         std::getline(stream, line);
                     } while (to_lowercase(line.substr(0, 12)) != "comment-end:"
                     );
@@ -158,18 +167,21 @@ class Level {
         std::string movement,
         std::chrono::milliseconds interval = std::chrono::milliseconds(0)
     ) {
-        if (movement.empty())
+        if (movement.empty()) {
             return;
+        }
         for (auto& move : movement) {
             const auto direction = movement_to_direction(move);
             const auto player_next_pos = player_position_ + direction;
             player_direction_ = direction;
-            if (at(player_next_pos) & Tile::Wall)
+            if (at(player_next_pos) & Tile::Wall) {
                 continue;
+            }
             if (at(player_next_pos) & Tile::Crate) {
                 const auto crate_next_pos = player_next_pos + direction;
-                if (at(crate_next_pos) & (Tile::Wall | Tile::Crate))
+                if (at(crate_next_pos) & (Tile::Wall | Tile::Crate)) {
                     continue;
+                }
 
                 at(player_next_pos) &= ~Tile::Crate;
                 at(crate_next_pos) |= Tile::Crate;
@@ -198,8 +210,9 @@ class Level {
 	 * @brief 撤回上一步操作.
 	 */
     void undo() {
-        if (movements_.empty())
+        if (movements_.empty()) {
             return;
+        }
 
         auto movement = movements_.back();
         movements_.pop_back();
@@ -230,10 +243,12 @@ class Level {
 	 */
     void reset() {
         clear(Tile::Deadlocked | Tile::PlayerMovable | Tile::CrateMovable);
-        while (!movements_.empty())
+        while (!movements_.empty()) {
             undo();
-        while (rotation_)
+        }
+        while (rotation_) {
             rotate();
+        }
         player_direction_ = {0, 1};
     }
 
@@ -243,7 +258,7 @@ class Level {
 	 * @return true  已通关.
 	 * @return false 未通关.
 	 */
-    bool passed() const noexcept {
+    auto passed() const noexcept -> bool {
         return crate_positions_ == target_positions_;
     }
 
@@ -393,10 +408,11 @@ class Level {
             );
 
         auto flip = [center_x = (size().x - 1) / 2.f](auto pos) {
-            if (pos.x < center_x)
+            if (pos.x < center_x) {
                 pos.x = static_cast<int>(center_x + std::abs(pos.x - center_x));
-            else
+            } else {
                 pos.x = static_cast<int>(center_x - std::abs(pos.x - center_x));
+            }
             return pos;
         };
 
@@ -434,11 +450,11 @@ class Level {
 	 *
 	 * @return std::vector<sf::Vector2i> 最短路径.
 	 */
-    std::vector<sf::Vector2i> find_path(
+    auto find_path(
         const sf::Vector2i& start,
         const sf::Vector2i& end,
         uint8_t border
-    ) {
+    ) -> std::vector<sf::Vector2i> {
         struct Node {
             sf::Vector2i data;
             long priority;
@@ -475,12 +491,14 @@ class Level {
         while (!queue.empty()) {
             const auto [current, _] = queue.top();
             queue.pop();
-            if (current == end)
+            if (current == end) {
                 break;
+            }
             for (const auto direction : directions) {
                 const auto neighbor = current + direction;
-                if (at(neighbor) & border)
+                if (at(neighbor) & border) {
                     continue;
+                }
 
                 const auto neighbor_cost =
                     cost[current] + manhattan_distance(neighbor, end);
@@ -494,8 +512,9 @@ class Level {
         }
 
         auto it = came_from.find(end);
-        if (it == came_from.end())
+        if (it == came_from.end()) {
             return {};
+        }
 
         std::vector<sf::Vector2i> path;
         path.emplace_back(end);
@@ -508,11 +527,11 @@ class Level {
         return path;
     }
 
-    sf::Vector2i to_map_position(
+    auto to_map_position(
         sf::Vector2i pos,
         const sf::RenderWindow& window,
         const Material& material
-    ) const {
+    ) -> sf::Vector2i const {
         // TODO: 需要重构, 可读性较差, 非必要的重复计算
         const auto window_size = sf::Vector2f(window.getSize());
         const auto window_center = window_size / 2.f;
@@ -546,23 +565,25 @@ class Level {
         );
     }
 
-    uint8_t& at(const sf::Vector2i& pos) {
-        if (pos.x < 0 || pos.x >= size_.x || pos.y < 0 && pos.y >= size_.y)
+    auto at(const sf::Vector2i& pos) -> uint8_t& {
+        if (pos.x < 0 || pos.x >= size_.x || pos.y < 0 && pos.y >= size_.y) {
             throw std::out_of_range("");
+        }
         return map_[pos.y * size_.x + pos.x];
     }
 
-    uint8_t at(const sf::Vector2i& pos) const {
-        if (pos.x < 0 || pos.x >= size_.x || pos.y < 0 && pos.y >= size_.y)
+    auto at(const sf::Vector2i& pos) const -> uint8_t {
+        if (pos.x < 0 || pos.x >= size_.x || pos.y < 0 && pos.y >= size_.y) {
             throw std::out_of_range("");
+        }
         return map_[pos.y * size_.x + pos.x];
     }
 
-    uint8_t& at(int x, int y) {
+    auto at(int x, int y) -> uint8_t& {
         return at({x, y});
     }
 
-    uint8_t at(int x, int y) const {
+    auto at(int x, int y) const -> uint8_t {
         return at({x, y});
     }
 
@@ -594,7 +615,7 @@ class Level {
         );
     }
 
-    uint32_t crc32() const noexcept {
+    auto crc32() const noexcept -> uint32_t {
         Level level(*this);
         level.reset();
         uint32_t crc = std::numeric_limits<uint32_t>::max();
@@ -614,7 +635,7 @@ class Level {
 	 *
 	 * @return std::string XSB 格式的地图数据.
 	 */
-    std::string ascii_map() const {
+    auto ascii_map() const -> std::string {
         std::string map;
         for (int y = 0; y < size().y; y++) {
             for (int x = 0; x < size().x; x++) {
@@ -713,15 +734,17 @@ class Level {
 
         const sf::Vector2i directions[] = {{0, -1}, {0, 1}, {-1, 0}, {1, 0}};
         for (const auto& direction : directions) {
-            if (!(at(crate_pos - direction) & Tile::PlayerMovable))
+            if (!(at(crate_pos - direction) & Tile::PlayerMovable)) {
                 continue;
+            }
 
             for (auto pos = crate_pos + direction;
                  !(at(pos)
                    & (Tile::Unmovable | Tile::Crate | Tile::CrateMovable));
                  pos += direction) {
-                if (came_from.contains(pos))
+                if (came_from.contains(pos)) {
                     continue;
+                }
 
                 // 防止 came_from 形成闭环
                 bool skip = false;
@@ -732,8 +755,9 @@ class Level {
                         break;
                     }
                 }
-                if (skip)
+                if (skip) {
                     continue;
+                }
 
                 came_from[pos] = crate_pos;
                 at(pos) |= Tile::CrateMovable;
@@ -759,15 +783,18 @@ class Level {
 	 *
 	 * @return std::vector<Level> 从文件中加载的关卡.
 	 */
-    static std::vector<Level> load(const std::filesystem::path& path) {
-        if (!exists(path))
+    static auto load(const std::filesystem::path& path) -> std::vector<Level> {
+        if (!exists(path)) {
             throw std::runtime_error("file does not exist");
-        if (path.extension() != ".txt" && path.extension() != ".xsb")
+        }
+        if (path.extension() != ".txt" && path.extension() != ".xsb") {
             throw std::runtime_error("file format not supported");
+        }
 
         std::ifstream file(path);
-        if (!file)
+        if (!file) {
             throw std::runtime_error("failed to open file");
+        }
 
         auto to_lowercase = [](auto str) {
             std::transform(str.cbegin(), str.cend(), str.begin(), [](auto c) {
@@ -785,8 +812,9 @@ class Level {
                     levels.emplace_back(data);
 
                     // 仅保留有地图数据的关卡
-                    if (levels.back().ascii_map().empty())
+                    if (levels.back().ascii_map().empty()) {
                         levels.pop_back();
+                    }
                     data.clear();
                     continue;
                 }
@@ -802,8 +830,9 @@ class Level {
                 data += line + '\n';
             }
             levels.emplace_back(data);
-            if (levels.back().ascii_map().empty())
+            if (levels.back().ascii_map().empty()) {
                 levels.pop_back();
+            }
         }
 
         return levels;
@@ -873,8 +902,9 @@ class Level {
         }
 
         // 填充地板
-        if (size.x + size.y > 0)
+        if (size.x + size.y > 0) {
             fill(player_position_, Tile::Floor, Tile::Wall);
+        }
     }
 
     /**
@@ -926,7 +956,7 @@ class Level {
 	 * @return true  箱子一定锁死.
 	 * @return false 箱子不一定锁死.
 	 */
-    bool is_crate_deadlocked(const sf::Vector2i& position) const {
+    auto is_crate_deadlocked(const sf::Vector2i& position) const -> bool {
         assert(at(position) & Tile::Crate);
 
         // #$
@@ -934,11 +964,13 @@ class Level {
         {
             const sf::Vector2i directions[4] =
                 {{0, -1}, {1, 0}, {0, 1}, {-1, 0}};
-            for (size_t i = 0; i < 4; i++)
+            for (size_t i = 0; i < 4; i++) {
                 if ((at(position + directions[i]) & Tile::Unmovable)
                     && (at(position + directions[(i + 1) % 4]) & Tile::Unmovable
-                    ))
+                    )) {
                     return true;
+                }
+            }
         }
 
         // $$
@@ -958,12 +990,18 @@ class Level {
                 if ((at(position + directions[i]) & Tile::Crate)
                     && (at(position + directions[i + 1])
                         & at(position + directions[(i + 2) % 8])
-                        & Tile::Unmovable))
-                    return true;
+                        & Tile::Unmovable)) {
+                    {
+                        return true;
+                    }
+                }
                 if ((at(position + directions[i])
                      & at(position + directions[i + 1]) & Tile::Unmovable)
-                    && (at(position + directions[(i + 2) % 8]) & Tile::Crate))
-                    return true;
+                    && (at(position + directions[(i + 2) % 8]) & Tile::Crate)) {
+                    {
+                        return true;
+                    }
+                }
             }
         }
 
@@ -988,8 +1026,11 @@ class Level {
             for (size_t i = 0; i < 24; i += 3) {
                 if (at(position + directions[i])
                         & at(position + directions[i + 1]) & Tile::Unmovable
-                    && at(position + directions[i + 2]) & Tile::Crate)
-                    return true;
+                    && at(position + directions[i + 2]) & Tile::Crate) {
+                    {
+                        return true;
+                    }
+                }
             }
         }
 
@@ -1006,12 +1047,14 @@ class Level {
                 {-1, 0},
                 {-1, -1}
             };
-            for (size_t i = 0; i < 8; i += 2)
+            for (size_t i = 0; i < 8; i += 2) {
                 if (at(position + directions[i])
                     & at(position + directions[i + 1])
                     & at(position + directions[(i + 2) % 8])
-                    & (Tile::Unmovable | Tile::Crate))
+                    & (Tile::Unmovable | Tile::Crate)) {
                     return true;
+                }
+            }
         }
 
         return false;
@@ -1023,14 +1066,17 @@ class Level {
 	 * @param position 箱子位置.
 	 */
     void check_deadlock(const sf::Vector2i& position) {
-        if (!is_crate_deadlocked(position))
+        if (!is_crate_deadlocked(position)) {
             return;
+        }
         at(position) |= Tile::Deadlocked;
         const sf::Vector2i directions[4] = {{0, -1}, {1, 0}, {0, 1}, {-1, 0}};
-        for (const auto direction : directions)
+        for (const auto direction : directions) {
             if (at(position + direction) & Tile::Crate
-                && !(at(position + direction) & Tile::Deadlocked))
+                && !(at(position + direction) & Tile::Deadlocked)) {
                 check_deadlock(position + direction);
+            }
+        }
     }
 
     /**
@@ -1038,8 +1084,9 @@ class Level {
 	 */
     void refresh_deadlocks() {
         clear(Tile::Deadlocked);
-        for (const auto& crate_pos : crate_positions_)
+        for (const auto& crate_pos : crate_positions_) {
             check_deadlock(crate_pos);
+        }
     }
 
     sf::Vector2i size_;

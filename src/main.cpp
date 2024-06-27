@@ -5,7 +5,7 @@
 
 #include "sokoban.hpp"
 
-int main(int argc, char* argv[]) {
+auto main(int argc, char* argv[]) -> int {
     std::filesystem::current_path(std::filesystem::path(argv[0]).parent_path());
 
     try {

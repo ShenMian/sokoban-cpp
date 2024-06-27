@@ -85,8 +85,8 @@ class Database {
 	 *
 	 * @param path XSB 格式文件路径.
 	 */
-    std::vector<Level> import_levels_from_file(const std::filesystem::path& path
-    ) {
+    auto import_levels_from_file(const std::filesystem::path& path
+    ) -> std::vector<Level> {
         const auto levels = Level::load(path);
         for (const auto& level : levels)
             import_level(level);
@@ -98,7 +98,7 @@ class Database {
 	 *
 	 * @param level 关卡.
 	 */
-    std::optional<int> get_level_id(const Level& level) {
+    auto get_level_id(const Level& level) -> std::optional<int> {
         SQLite::Statement query_id(
             database_,
             "SELECT id FROM tb_level "
@@ -115,7 +115,7 @@ class Database {
 	 *
 	 * @param id 关卡 ID.
 	 */
-    std::optional<Level> get_level_by_id(int id) {
+    auto get_level_by_id(int id) -> std::optional<Level> {
         SQLite::Statement query_level(
             database_,
             "SELECT title, author, map, solution FROM tb_level "
@@ -144,7 +144,8 @@ class Database {
 	 * @param level_id 关卡 ID.
 	 * @param solution 关卡答案.
 	 */
-    bool update_level_solution(int level_id, const std::string& solution) {
+    auto
+    update_level_solution(int level_id, const std::string& solution) -> bool {
         SQLite::Statement update_solution(
             database_,
             "UPDATE tb_level "
@@ -165,7 +166,7 @@ class Database {
 	 *
 	 * @param level 已通关的关卡.
 	 */
-    bool update_level_solution(const Level& level) {
+    auto update_level_solution(const Level& level) -> bool {
         assert(level.passed());
         return update_level_solution(
             get_level_id(level).value(),
@@ -178,7 +179,8 @@ class Database {
 	 *
 	 * @param level_id 关卡 ID.
 	 */
-    bool update_session_movement(int level_id, const std::string& movement) {
+    auto
+    update_session_movement(int level_id, const std::string& movement) -> bool {
         SQLite::Statement update_movements(
             database_,
             "UPDATE tb_session "
@@ -195,7 +197,7 @@ class Database {
 	 *
 	 * @param level 关卡.
 	 */
-    bool update_session_movement(const Level& level) {
+    auto update_session_movement(const Level& level) -> bool {
         return update_session_movement(
             get_level_id(level).value(),
             level.movement()
@@ -207,7 +209,7 @@ class Database {
 	 *
 	 * @param level 关卡.
 	 */
-    bool upsert_level_session(const Level& level) {
+    auto upsert_level_session(const Level& level) -> bool {
         return upsert_level_session(get_level_id(level).value());
     }
 
@@ -216,7 +218,7 @@ class Database {
 	 *
 	 * @param level_id 关卡 ID.
 	 */
-    bool upsert_level_session(int level_id) {
+    auto upsert_level_session(int level_id) -> bool {
         SQLite::Statement upsert_history(
             database_,
             "INSERT OR IGNORE INTO tb_session(level_id, datetime) "
@@ -230,7 +232,7 @@ class Database {
     /**
 	 * @brief 获取历史最新会话关卡 ID.
 	 */
-    std::optional<int> get_latest_level_id() {
+    auto get_latest_level_id() -> std::optional<int> {
         SQLite::Statement query_latest_history(
             database_,
             "SELECT level_id FROM tb_session "
@@ -247,7 +249,7 @@ class Database {
 	 *
 	 * @param level 关卡.
 	 */
-    std::string get_level_session_movements(const Level& level) {
+    auto get_level_session_movements(const Level& level) -> std::string {
         SQLite::Statement query_movements(
             database_,
             "SELECT movement FROM tb_session "

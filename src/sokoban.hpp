@@ -101,8 +101,9 @@ class Sokoban {
         load_latest_session();
 
         input_thread_ = std::jthread([&](const std::stop_token& token) {
-            while (!token.stop_requested())
+            while (!token.stop_requested()) {
                 handle_input();
+            }
         });
 
         while (window_.isOpen()) {
@@ -201,13 +202,15 @@ class Sokoban {
     void load_next_level() {
         const auto id = database_.get_level_id(level_).value();
         auto result = database_.get_level_by_id(id + 1);
-        if (!result.has_value())
+        if (!result.has_value()) {
             return;
+        }
         level_ = result.value();
 
         print_info();
-        if (level_.metadata().contains("title"))
+        if (level_.metadata().contains("title")) {
             window_.setTitle("Sokoban - " + level_.metadata().at("title"));
+        }
 
         database_.upsert_level_session(level_);
         level_.play(database_.get_level_session_movements(level_));
@@ -221,8 +224,9 @@ class Sokoban {
         level_ = result.value();
 
         print_info();
-        if (level_.metadata().contains("title"))
+        if (level_.metadata().contains("title")) {
             window_.setTitle("Sokoban - " + level_.metadata().at("title"));
+        }
 
         database_.upsert_level_session(level_);
         level_.play(database_.get_level_session_movements(level_));
@@ -239,8 +243,9 @@ class Sokoban {
         }
 
         print_info();
-        if (level_.metadata().contains("title"))
+        if (level_.metadata().contains("title")) {
             window_.setTitle("Sokoban - " + level_.metadata().at("title"));
+        }
 
         database_.upsert_level_session(level_);
         level_.play(database_.get_level_session_movements(level_));
@@ -253,8 +258,9 @@ class Sokoban {
                 .value();
 
         print_info();
-        if (level_.metadata().contains("title"))
+        if (level_.metadata().contains("title")) {
             window_.setTitle("Sokoban - " + level_.metadata().at("title"));
+        }
 
         database_.upsert_level_session(level_);
         level_.play(database_.get_level_session_movements(level_));
@@ -280,13 +286,14 @@ class Sokoban {
                 input_thread_.join();
                 window_.close();
             }
-            if (event.type == sf::Event::Resized)
+            if (event.type == sf::Event::Resized) {
                 window_.setView(sf::View(sf::FloatRect(
                     0.f,
                     0.f,
                     static_cast<float>(event.size.width),
                     static_cast<float>(event.size.height)
                 )));
+            }
         }
     }
 
@@ -298,8 +305,9 @@ class Sokoban {
     }
 
     void handle_mouse_input() {
-        if (!sf::Mouse::isButtonPressed(sf::Mouse::Left))
+        if (!sf::Mouse::isButtonPressed(sf::Mouse::Left)) {
             return;
+        }
 
         const auto mouse_pos = level_.to_map_position(
             sf::Mouse::getPosition(window_),
@@ -307,11 +315,13 @@ class Sokoban {
             material_
         );
         if (mouse_pos.x < 1 || mouse_pos.x > level_.size().x || mouse_pos.y < 1
-            || mouse_pos.y > level_.size().y)
+            || mouse_pos.y > level_.size().y) {
             return;
+        }
 
-        if (mouse_select_clock_.getElapsedTime() < sf::seconds(0.25f))
+        if (mouse_select_clock_.getElapsedTime() < sf::seconds(0.25f)) {
             return;
+        }
         mouse_select_clock_.restart();
 
         try {
@@ -403,8 +413,9 @@ class Sokoban {
     }
 
     void handle_keyboard_input() {
-        if (keyboard_input_clock_.getElapsedTime() < sf::seconds(0.25f))
+        if (keyboard_input_clock_.getElapsedTime() < sf::seconds(0.25f)) {
             return;
+        }
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::W)
             || sf::Keyboard::isKeyPressed(sf::Keyboard::Up)
             || sf::Keyboard::isKeyPressed(sf::Keyboard::K)) {
