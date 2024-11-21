@@ -19,17 +19,17 @@ class Sokoban {
   public:
     Sokoban() :
         level_(""),
-        material_("img/default.png"),
+        material_("assets/img/default.png"),
         database_("database.db") {}
 
     void run(int argc, char* argv[]) {
         load_sounds();
         background_music_.play();
 
-        database_.import_levels_from_file("level/default.xsb");
-        database_.import_levels_from_file("level/box_world.xsb");
+        database_.import_levels_from_file("assets/level/default.xsb");
+        database_.import_levels_from_file("assets/level/box_world.xsb");
 
-        // preview_levels(database_.import_levels_from_file("level/default.xsb"));
+        // preview_levels(database_.import_levels_from_file("assets/level/default.xsb"));
 
         std::cout << R"(
            _____       __         __
@@ -140,11 +140,11 @@ class Sokoban {
     }
 
     void load_sounds() {
-        passed_buffer_.loadFromFile("audio/success.wav");
+        passed_buffer_.loadFromFile("assets/audio/success.wav");
         passed_sound_.setVolume(80.f);
         passed_sound_.setBuffer(passed_buffer_);
 
-        background_music_.openFromFile("audio/background.wav");
+        background_music_.openFromFile("assets/audio/background.wav");
         background_music_.setVolume(60.f);
         background_music_.setLoop(true);
     }
@@ -273,7 +273,7 @@ class Sokoban {
             "Sokoban"
         );
         sf::Image icon;
-        icon.loadFromFile("img/crate.png");
+        icon.loadFromFile("assets/img/crate.png");
         window_
             .setIcon(icon.getSize().x, icon.getSize().y, icon.getPixelsPtr());
         window_.setFramerateLimit(60);

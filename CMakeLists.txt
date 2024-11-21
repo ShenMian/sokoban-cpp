@@ -24,12 +24,12 @@ target_sources(${PROJECT_NAME} PRIVATE src/main.cpp)
 target_link_libraries(${PROJECT_NAME} PRIVATE sfml-graphics sfml-audio SQLiteCpp)
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_20)
 
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/asset/level/
-    DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/level/)
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/asset/img/
-    DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/img/)
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/asset/audio/
-    DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/audio/)
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/assets/level/
+    DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/assets/level/)
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/assets/img/
+    DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/assets/img/)
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/assets/audio/
+    DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/assets/audio/)
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
     enable_language("RC")
