@@ -10,13 +10,13 @@ set(BUILD_SHARED_LIBS FALSE)
 include(FetchContent)
 FetchContent_Declare(SFML
     GIT_REPOSITORY https://github.com/SFML/SFML.git
-    GIT_TAG 2.6.1)
+    GIT_TAG 2.6.2)
 FetchContent_MakeAvailable(SFML)
 
 include(FetchContent)
 FetchContent_Declare(SQLiteCpp
     GIT_REPOSITORY https://github.com/SRombauts/SQLiteCpp.git
-    GIT_TAG 3.3.1)
+    GIT_TAG 3.3.2)
 FetchContent_MakeAvailable(SQLiteCpp)
 
 add_executable(${PROJECT_NAME})
