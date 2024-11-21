@@ -1,5 +1,6 @@
 /target
 /build
+/.xmake
 
 /.cache
 CMakeSettings.json
