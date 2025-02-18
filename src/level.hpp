@@ -296,11 +296,10 @@ class Level {
         const auto offset = target_center - map_size / 2.f;
         for (int y = 0; y < size().y; y++) {
             for (int x = 0; x < size().x; x++) {
-                sf::Sprite sprite;
-                sprite.setScale(scale, scale);
+                sf::Sprite sprite(material.texture);
+                sprite.setScale({scale, scale});
                 sprite.setPosition(
-                    x * tile_size.x + offset.x,
-                    y * tile_size.y + offset.y
+                    {x * tile_size.x + offset.x, y * tile_size.y + offset.y}
                 );
 
                 auto tiles = at(x, y);
@@ -314,38 +313,44 @@ class Level {
                 switch (tiles & ~(Tile::PlayerMovable | Tile::CrateMovable)) {
                     case Tile::Wall:
                         material.set_texture(sprite, Tile::Wall);
+                        target.draw(sprite);
                         break;
 
                     case Tile::Target:
                         material.set_texture(sprite, Tile::Target);
+                        target.draw(sprite);
                         break;
 
                     case Tile::Crate:
                         material.set_texture(sprite, Tile::Crate);
+                        target.draw(sprite);
                         break;
 
                     case Tile::Target | Tile::Crate:
                     case Tile::Target | Tile::Crate | Tile::Deadlocked:
                         sprite.setColor(sf::Color(0, 255, 0));
                         material.set_texture(sprite, Tile::Crate);
+                        target.draw(sprite);
                         break;
 
                     case Tile::Target | Tile::Player:
                         material.set_texture(sprite, Tile::Target);
                         target.draw(sprite);
                         material.set_texture_player(sprite, player_dir);
+                        target.draw(sprite);
                         break;
 
                     case Tile::Crate | Tile::Deadlocked:
                         sprite.setColor(sf::Color(255, 0, 0));
                         material.set_texture(sprite, Tile::Crate);
+                        target.draw(sprite);
                         break;
 
                     case Tile::Player:
                         material.set_texture_player(sprite, player_dir);
+                        target.draw(sprite);
                         break;
                 }
-                target.draw(sprite);
 
                 if (tiles & Tile::CrateMovable) {
                     material.set_texture(sprite, Tile::Crate);

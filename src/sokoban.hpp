@@ -11,6 +11,7 @@
 #include <optional>
 #include <thread>
 
+#include "SFML/System/Vector2.hpp"
 #include "database.hpp"
 #include "level.hpp"
 #include "material.hpp"
@@ -19,6 +20,7 @@ class Sokoban {
   public:
     Sokoban() :
         level_(""),
+        passed_sound_(passed_buffer_),
         material_("assets/img/default.png"),
         database_("database.db") {}
 
@@ -140,13 +142,17 @@ class Sokoban {
     }
 
     void load_sounds() {
-        passed_buffer_.loadFromFile("assets/audio/success.wav");
+        if (!passed_buffer_.loadFromFile("assets/audio/success.wav")) {
+            throw std::runtime_error("failed to load audio");
+        }
         passed_sound_.setVolume(80.f);
         passed_sound_.setBuffer(passed_buffer_);
 
-        background_music_.openFromFile("assets/audio/background.wav");
+        if (!background_music_.openFromFile("assets/audio/background.wav")) {
+            throw std::runtime_error("failed to load audio");
+        }
         background_music_.setVolume(60.f);
-        background_music_.setLoop(true);
+        background_music_.setLooping(true);
     }
 
     std::optional<Level> import_level_from_clipboard() {
@@ -161,6 +167,7 @@ class Sokoban {
         return std::nullopt;
     }
 
+    // TODO
     void preview_levels(const std::vector<Level>& levels) {
         const sf::Vector2i cell_size = {
             5,
@@ -170,33 +177,38 @@ class Sokoban {
         const sf::Vector2i spacing = {20, 20};
 
         sf::RenderTexture preview;
-        preview.create(
-            cell_size.x * (level_size.x + spacing.x) - spacing.x,
-            cell_size.y * (level_size.y + spacing.y) - spacing.y
-        );
+        if (!preview.resize(sf::Vector2u(
+                cell_size.x * (level_size.x + spacing.x) - spacing.x,
+                cell_size.y * (level_size.y + spacing.y) - spacing.y
+            ))) {
+            throw std::runtime_error("failed to resize render texture");
+        }
         for (size_t i = 0; i < levels.size(); i++) {
             sf::RenderTexture target;
-            target.create(level_size.x, level_size.y);
+            if (!target.resize(sf::Vector2u(level_size.x, level_size.y))) {
+                throw std::runtime_error("failed to resize render texture");
+            }
             target.clear(sf::Color::Transparent);
             levels[i].render(target, material_);
             target.display();
 
-            sf::Sprite sprite;
-            sprite.setTexture(target.getTexture());
+            sf::Sprite sprite(target.getTexture());
             sprite.setPosition(
-                static_cast<float>(
-                    (i % cell_size.x) * (level_size.x + spacing.x)
-                ),
-                static_cast<float>(
-                    (i / cell_size.x) * (level_size.y + spacing.y)
-                )
+                {static_cast<float>(
+                     (i % cell_size.x) * (level_size.x + spacing.x)
+                 ),
+                 static_cast<float>(
+                     (i / cell_size.x) * (level_size.y + spacing.y)
+                 )}
             );
             preview.draw(sprite);
         }
         preview.display();
-        preview.getTexture().copyToImage().saveToFile(
-            "D:/Users/sms/Desktop/level.png"
-        );
+        if (!preview.getTexture().copyToImage().saveToFile(
+                "D:/Users/sms/Desktop/level.png"
+            )) {
+            throw std::runtime_error("failed to save image");
+        }
     }
 
     void load_next_level() {
@@ -269,30 +281,28 @@ class Sokoban {
     void create_window() {
         const auto mode = sf::VideoMode::getDesktopMode();
         window_.create(
-            sf::VideoMode {mode.width / 2, mode.height / 2},
+            sf::VideoMode({mode.size.x / 2, mode.size.y / 2}),
             "Sokoban"
         );
         sf::Image icon;
-        icon.loadFromFile("assets/img/crate.png");
-        window_
-            .setIcon(icon.getSize().x, icon.getSize().y, icon.getPixelsPtr());
+        if (!icon.loadFromFile("assets/img/crate.png")) {
+            throw std::runtime_error("failed to load image");
+        }
+        window_.setIcon(icon.getSize(), icon.getPixelsPtr());
         window_.setFramerateLimit(60);
     }
 
     void handle_window_event() {
-        for (auto event = sf::Event {}; window_.pollEvent(event);) {
-            if (event.type == sf::Event::Closed) {
+        while (const auto event = window_.pollEvent()) {
+            if (event->is<sf::Event::Closed>()) {
                 input_thread_.request_stop();
                 input_thread_.join();
                 window_.close();
-            }
-            if (event.type == sf::Event::Resized) {
-                window_.setView(sf::View(sf::FloatRect(
-                    0.f,
-                    0.f,
-                    static_cast<float>(event.size.width),
-                    static_cast<float>(event.size.height)
-                )));
+            } else if (const auto resized_event =
+                           event->getIf<sf::Event::Resized>()) {
+                window_.setView(sf::View(
+                    sf::FloatRect({0.f, 0.f}, sf::Vector2f(resized_event->size))
+                ));
             }
         }
     }
@@ -305,7 +315,7 @@ class Sokoban {
     }
 
     void handle_mouse_input() {
-        if (!sf::Mouse::isButtonPressed(sf::Mouse::Left)) {
+        if (!sf::Mouse::isButtonPressed(sf::Mouse::Button::Left)) {
             return;
         }
 
@@ -359,7 +369,7 @@ class Sokoban {
 
                 std::cout << "Move crate: "
                           << clock.getElapsedTime().asMicroseconds()
-                          << "us\n";  // TODO: performance test
+                          << "us\n"; // TODO: performance test
             } else if (level_.at(mouse_pos) & Tile::Crate
                        && selected_crate_ != mouse_pos) {
                 // 切换选中的箱子
@@ -378,7 +388,7 @@ class Sokoban {
             came_from_ = level_.calc_crate_movable(mouse_pos);
             std::cout << "Calc crate movable: "
                       << clock.getElapsedTime().asMicroseconds()
-                      << "us\n";  // TODO: performance test
+                      << "us\n"; // TODO: performance test
             selected_crate_ = mouse_pos;
             return;
         }
@@ -399,14 +409,15 @@ class Sokoban {
         while (!path.empty()) {
             const auto direction = path.back() - current_pos;
             path.pop_back();
-            if (direction == sf::Vector2i(0, -1))
+            if (direction == sf::Vector2i(0, -1)) {
                 movement += 'u';
-            else if (direction == sf::Vector2i(0, 1))
+            } else if (direction == sf::Vector2i(0, 1)) {
                 movement += 'd';
-            else if (direction == sf::Vector2i(-1, 0))
+            } else if (direction == sf::Vector2i(-1, 0)) {
                 movement += 'l';
-            else if (direction == sf::Vector2i(1, 0))
+            } else if (direction == sf::Vector2i(1, 0)) {
                 movement += 'r';
+            }
             current_pos += direction;
         }
         level_.play(movement, move_interval_);
@@ -416,46 +427,46 @@ class Sokoban {
         if (keyboard_input_clock_.getElapsedTime() < sf::seconds(0.25f)) {
             return;
         }
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::W)
-            || sf::Keyboard::isKeyPressed(sf::Keyboard::Up)
-            || sf::Keyboard::isKeyPressed(sf::Keyboard::K)) {
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W)
+            || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up)
+            || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::K)) {
             level_.play("u");
             keyboard_input_clock_.restart();
-        } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::S)
-                   || sf::Keyboard::isKeyPressed(sf::Keyboard::Down)
-                   || sf::Keyboard::isKeyPressed(sf::Keyboard::J)) {
+        } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S)
+                   || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down)
+                   || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::J)) {
             level_.play("d");
             keyboard_input_clock_.restart();
-        } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::A)
-                   || sf::Keyboard::isKeyPressed(sf::Keyboard::Left)
-                   || sf::Keyboard::isKeyPressed(sf::Keyboard::H)) {
+        } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A)
+                   || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left)
+                   || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::H)) {
             level_.play("l");
             keyboard_input_clock_.restart();
-        } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::D)
-                   || sf::Keyboard::isKeyPressed(sf::Keyboard::Right)
-                   || sf::Keyboard::isKeyPressed(sf::Keyboard::L)) {
+        } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D)
+                   || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right)
+                   || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::L)) {
             level_.play("r");
             keyboard_input_clock_.restart();
-        } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Backspace)) {
+        } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Backspace)) {
             level_.undo();
             selected_crate_ = {-1, -1};
             level_.clear(Tile::PlayerMovable | Tile::CrateMovable);
             keyboard_input_clock_.restart();
-        } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape)) {
+        } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Escape)) {
             level_.reset();
             selected_crate_ = {-1, -1};
             level_.clear(Tile::PlayerMovable | Tile::CrateMovable);
             keyboard_input_clock_.restart();
-        } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::R)) {
+        } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::R)) {
             level_.rotate();
             keyboard_input_clock_.restart();
-        } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Hyphen)) {
+        } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Hyphen)) {
             load_prev_level();
             keyboard_input_clock_.restart();
-        } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Equal)) {
+        } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Equal)) {
             load_next_level();
             keyboard_input_clock_.restart();
-        } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::P)) {
+        } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::P)) {
             if (!level_.metadata().contains("solution"))
                 return;
             if (!level_.movements().empty()) {
@@ -464,13 +475,13 @@ class Sokoban {
             }
             level_.play(level_.metadata().at("solution"), move_interval_);
             keyboard_input_clock_.restart();
-        } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::LControl)
-                   && sf::Keyboard::isKeyPressed(sf::Keyboard::V)) {
+        } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LControl)
+                   && sf::Keyboard::isKeyPressed(sf::Keyboard::Key::V)) {
             level_ = import_level_from_clipboard().value();
             database_.upsert_level_session(level_);
             keyboard_input_clock_.restart();
-        } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::LControl)
-                   && sf::Keyboard::isKeyPressed(sf::Keyboard::I)) {
+        } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LControl)
+                   && sf::Keyboard::isKeyPressed(sf::Keyboard::Key::I)) {
             if (move_interval_ != std::chrono::milliseconds(0))
                 move_interval_ = std::chrono::milliseconds(0);
             else

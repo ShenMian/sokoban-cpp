@@ -10,7 +10,7 @@ set(BUILD_SHARED_LIBS FALSE)
 include(FetchContent)
 FetchContent_Declare(SFML
     GIT_REPOSITORY https://github.com/SFML/SFML.git
-    GIT_TAG 2.6.2)
+    GIT_TAG 3.0.0)
 FetchContent_MakeAvailable(SFML)
 
 include(FetchContent)
@@ -21,7 +21,7 @@ FetchContent_MakeAvailable(SQLiteCpp)
 
 add_executable(${PROJECT_NAME})
 target_sources(${PROJECT_NAME} PRIVATE src/main.cpp)
-target_link_libraries(${PROJECT_NAME} PRIVATE sfml-graphics sfml-audio SQLiteCpp)
+target_link_libraries(${PROJECT_NAME} PRIVATE SFML::Graphics 	SFML::Audio SQLiteCpp)
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_20)
 
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/assets/level/
